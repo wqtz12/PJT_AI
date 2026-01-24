@@ -1,0 +1,40 @@
+mutation CreateUser @auth(level: PUBLIC, insecureReason: "This mutation is intended for initial user setup and does not require authentication.") {
+  user_insert(data: {
+    id: "550e8400-e29b-41d4-a716-446655440000",
+    displayName: "demouser",
+    email: "demouser@example.com",
+    createdAt: "2024-01-01T00:00:00Z"
+  })
+}
+
+query GetUserById($id: UUID!) @auth(level: USER) {
+  user(id: $id) {
+    id
+    displayName
+    email
+    bio
+    photoUrl
+    createdAt
+  }
+}
+
+mutation CreateExperience($company: String!, $jobTitle: String!, $startDate: Date!, $userId: UUID!) @auth(level: USER) {
+  experience_insert(data: {
+    company: $company,
+    jobTitle: $jobTitle,
+    startDate: $startDate,
+    createdAt: "2024-01-01T00:00:00Z",
+    userId: $userId
+  })
+}
+
+query ListExperiencesByUser($userId: UUID!) @auth(level: USER) {
+  experiences(where: {userId: {eq: $userId}}) {
+    id
+    company
+    jobTitle
+    startDate
+    endDate
+    description
+  }
+}

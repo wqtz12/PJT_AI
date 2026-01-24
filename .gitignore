@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache
+.cache/
+.npm/
+.eslintcache
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Security reports (may contain sensitive data)
+security-reports/
+
+# Credentials and secrets
+*.pem
+*.key
+credentials.json
+service-account.json
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# Package locks (optional - uncomment if needed)
+# package-lock.json
+# yarn.lock
+
+# Firebase/Google Cloud credentials (sensitive)
+**/serviceAccountKey.json
+**/*-firebase-adminsdk-*.json
+**/firebase-adminsdk*.json

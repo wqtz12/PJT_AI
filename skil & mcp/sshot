@@ -1,0 +1,21 @@
+import base64
+
+@mcp.tool()
+async def take_screenshot(url: str) -> str:
+    """웹사이트 스크린샷을 찍어 Base64 이미지를 반환합니다."""
+    browser = await n.start(headless=True)
+    try:
+        page = await browser.get(url)
+        await page.wait_for("body")
+        
+        # 스크린샷 찍기 (바이너리 데이터)
+        screenshot_bytes = await page.save_screenshot() 
+        
+        # Base64로 인코딩 (텍스트로 변환)
+        img_base64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+        
+        return f"스크린샷이 캡처되었습니다. (데이터 길이: {len(img_base64)})"
+        # 주의: 실제 이미지를 Claude에게 보여주려면 MCP Image Resource 포맷을 맞춰야 하지만, 
+        # 간단한 텍스트 도구에서는 '저장 완료' 메시지나 파일 경로를 주는 것이 더 안정적입니다.
+    finally:
+        browser.stop()

@@ -1,0 +1,18 @@
+mutation CreateSeedData @transaction @auth(level: PUBLIC, insecureReason: "This operation is intended for initial database seeding and does not contain sensitive operations.") {
+  # Replace with actual insertMany operations for your types
+  # Example:
+  # movie_insertMany(data: [
+  #   {
+  #     id: "550e8400-e29b-41d4-a716-446655440000",
+  #     title: "Inception",
+  #     imageUrl: "https://example.com/inception.jpg",
+  #     genre: "sci-fi",
+  #   },
+  #   {
+  #     id: "550e8400-e29b-41d4-a716-446655440001",
+  #     title: "The Matrix",
+  #     imageUrl: "https://example.com/matrix.jpg",
+  #     genre: "action",
+  #   }
+  # ])
+}

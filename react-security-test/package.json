@@ -1,0 +1,38 @@
+{
+  "name": "react-security-scanner",
+  "version": "1.0.0",
+  "description": "React 앱 보안 취약점 스캐너 (KISA JavaScript 시큐어코딩 가이드 기반) - MCP 서버 포함",
+  "type": "module",
+  "main": "security-scanner.js",
+  "bin": {
+    "react-security-scanner": "./mcp-server.js"
+  },
+  "scripts": {
+    "scan": "node security-scanner.js",
+    "scan:local": "node security-scanner.js --target=http://localhost:3000",
+    "mcp": "node mcp-server.js",
+    "test:xss": "node -e \"import('./high-severity-attacks.js').then(m => console.log(JSON.stringify(m.XSS_ATTACK.payloads, null, 2)))\"",
+    "test:sql": "node -e \"import('./high-severity-attacks.js').then(m => console.log(JSON.stringify(m.SQL_INJECTION.payloads, null, 2)))\"",
+    "report": "node security-scanner.js && open ./security-reports/*.html",
+    "build:skill": "cd react-security-scanner && zip -r ../react-security-scanner.skill SKILL.md references/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "nodemailer": "^6.9.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "security",
+    "scanner",
+    "vulnerability",
+    "react",
+    "xss",
+    "sql-injection",
+    "csrf",
+    "kisa",
+    "mcp",
+    "claude"
+  ],
+  "author": "",
+  "license": "MIT"
+}
