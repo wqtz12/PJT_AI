@@ -74,3 +74,4 @@ firebase-debug.log
 **/serviceAccountKey.json
 **/*-firebase-adminsdk-*.json
 **/firebase-adminsdk*.json
+\n# Claude settings\n**/*.local.json
