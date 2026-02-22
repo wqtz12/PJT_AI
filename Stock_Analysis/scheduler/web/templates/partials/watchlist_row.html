@@ -1,0 +1,28 @@
+<tr id="row-{{ name }}">
+  <td><strong>{{ name }}</strong></td>
+  <td>
+    <div class="ticker-tags">
+      {% for t in wl.tickers %}
+      <span class="ticker-tag">{{ t }}</span>
+      {% endfor %}
+    </div>
+  </td>
+  <td>{{ wl.schedule }} KST</td>
+  <td>{{ wl.analysis_type or 'full' }}</td>
+  <td>{{ wl.notifications | join(', ') }}</td>
+  <td>
+    <span class="badge {% if wl.enabled %}badge-active{% else %}badge-inactive{% endif %}">
+      {% if wl.enabled %}ON{% else %}OFF{% endif %}
+    </span>
+  </td>
+  <td>
+    <button class="btn btn-sm btn-warning"
+            onclick="toggleWatchlist('{{ name }}', {{ 'false' if wl.enabled else 'true' }})">
+      {% if wl.enabled %}Disable{% else %}Enable{% endif %}
+    </button>
+    <button class="btn btn-sm btn-danger"
+            onclick="deleteWatchlist('{{ name }}')">
+      Delete
+    </button>
+  </td>
+</tr>

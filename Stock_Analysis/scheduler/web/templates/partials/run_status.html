@@ -1,0 +1,9 @@
+{% if status %}
+  {% if status.status == 'running' %}
+    <span class="text-warning pulse">Running...</span>
+  {% elif status.status == 'completed' %}
+    <span class="text-success">Done ({{ status.success_count }}/{{ status.success_count + status.fail_count }})</span>
+  {% elif status.status == 'error' %}
+    <span class="text-danger">Error: {{ status.error[:50] }}</span>
+  {% endif %}
+{% endif %}

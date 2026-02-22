@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}History - Stock Analysis Scheduler{% endblock %}
+
+{% block content %}
+<h1>Analysis History</h1>
+
+<!-- 필터 -->
+<div class="filter-bar">
+  <select id="filter-watchlist" onchange="filterHistory()"
+          hx-get="/partials/history-table"
+          hx-target="#history-table-body"
+          hx-swap="innerHTML"
+          hx-include="#filter-watchlist">
+    <option value="">All Watchlists</option>
+    {% for wl in watchlists %}
+    <option value="{{ wl }}">{{ wl }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- 이력 테이블 -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Watchlist</th>
+        <th>Tickers</th>
+        <th>Result</th>
+        <th>Duration</th>
+        <th>Notifications</th>
+      </tr>
+    </thead>
+    <tbody id="history-table-body">
+      {% for run in batch_history %}
+      <tr class="{% if run.fail_count > 0 %}row-warning{% endif %}">
+        <td>{{ run.timestamp[:16] }}</td>
+        <td><strong>{{ run.watchlist_name }}</strong></td>
+        <td>{{ run.total_tickers }}</td>
+        <td>
+          <span class="text-success">{{ run.success_count }} OK</span>
+          {% if run.fail_count > 0 %}
+          <span class="text-danger">{{ run.fail_count }} fail</span>
+          {% endif %}
+        </td>
+        <td>{{ "%.1f" | format(run.total_duration_sec or 0) }}s</td>
+        <td>{{ run.notifications_sent }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center">No history yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

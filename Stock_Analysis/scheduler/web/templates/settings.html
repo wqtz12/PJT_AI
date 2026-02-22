@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Settings - Stock Analysis Scheduler{% endblock %}
+
+{% block content %}
+<h1>Notification Settings</h1>
+
+<div class="settings-grid">
+  <!-- Telegram -->
+  <div class="setting-card">
+    <h3>Telegram</h3>
+    <div class="setting-body">
+      <div class="setting-row">
+        <span class="setting-label">Bot Token:</span>
+        <span class="setting-value">
+          {% if notifications.telegram.bot_token %}
+          <span class="badge badge-active">Configured</span>
+          {% else %}
+          <span class="badge badge-inactive">Not Set</span>
+          {% endif %}
+          <small>(env: TELEGRAM_BOT_TOKEN)</small>
+        </span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Chat ID:</span>
+        <span class="setting-value">
+          {% if notifications.telegram.chat_id %}
+          <span class="badge badge-active">Configured</span>
+          {% else %}
+          <span class="badge badge-inactive">Not Set</span>
+          {% endif %}
+          <small>(env: TELEGRAM_CHAT_ID)</small>
+        </span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Send Charts:</span>
+        <span class="setting-value">{{ notifications.telegram.get('send_charts', True) }}</span>
+      </div>
+    </div>
+    <button class="btn btn-sm btn-primary"
+            hx-post="/api/settings/test/telegram"
+            hx-target="#test-telegram"
+            hx-swap="innerHTML">
+      Test Connection
+    </button>
+    <div id="test-telegram" class="test-result"></div>
+  </div>
+
+  <!-- Email -->
+  <div class="setting-card">
+    <h3>Email</h3>
+    <div class="setting-body">
+      <div class="setting-row">
+        <span class="setting-label">SMTP:</span>
+        <span class="setting-value">{{ notifications.email.get('smtp_server', 'N/A') }}:{{ notifications.email.get('smtp_port', 'N/A') }}</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Sender:</span>
+        <span class="setting-value">
+          {% if notifications.email.sender %}
+          <span class="badge badge-active">Configured</span>
+          {% else %}
+          <span class="badge badge-inactive">Not Set</span>
+          {% endif %}
+          <small>(env: EMAIL_SENDER)</small>
+        </span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Recipients:</span>
+        <span class="setting-value">{{ notifications.email.get('recipients', []) | length }} configured</span>
+      </div>
+    </div>
+    <button class="btn btn-sm btn-primary"
+            hx-post="/api/settings/test/email"
+            hx-target="#test-email"
+            hx-swap="innerHTML">
+      Test Connection
+    </button>
+    <div id="test-email" class="test-result"></div>
+  </div>
+
+  <!-- Slack -->
+  <div class="setting-card">
+    <h3>Slack</h3>
+    <div class="setting-body">
+      <div class="setting-row">
+        <span class="setting-label">Webhook:</span>
+        <span class="setting-value">
+          {% if notifications.slack.webhook_url %}
+          <span class="badge badge-active">Configured</span>
+          {% else %}
+          <span class="badge badge-inactive">Not Set</span>
+          {% endif %}
+          <small>(env: SLACK_WEBHOOK_URL)</small>
+        </span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Channel:</span>
+        <span class="setting-value">{{ notifications.slack.get('channel', 'N/A') }}</span>
+      </div>
+    </div>
+    <button class="btn btn-sm btn-primary"
+            hx-post="/api/settings/test/slack"
+            hx-target="#test-slack"
+            hx-swap="innerHTML">
+      Test Connection
+    </button>
+    <div id="test-slack" class="test-result"></div>
+  </div>
+
+  <!-- File -->
+  <div class="setting-card">
+    <h3>File</h3>
+    <div class="setting-body">
+      <div class="setting-row">
+        <span class="setting-label">Output Dir:</span>
+        <span class="setting-value">{{ notifications.file.get('output_dir', 'output/scheduled') }}</span>
+      </div>
+    </div>
+    <button class="btn btn-sm btn-primary"
+            hx-post="/api/settings/test/file"
+            hx-target="#test-file"
+            hx-swap="innerHTML">
+      Test Connection
+    </button>
+    <div id="test-file" class="test-result"></div>
+  </div>
+</div>
+
+<div class="info-box">
+  <h4>Environment Variables</h4>
+  <p>Sensitive credentials are loaded from environment variables. Set them before starting the scheduler:</p>
+  <pre>
+export TELEGRAM_BOT_TOKEN="your-bot-token"
+export TELEGRAM_CHAT_ID="your-chat-id"
+export EMAIL_SENDER="your@email.com"
+export EMAIL_PASSWORD="your-app-password"
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+  </pre>
+</div>
+{% endblock %}

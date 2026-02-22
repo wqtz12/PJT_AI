@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Stock Analysis Scheduler{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- 스케줄러 상태 -->
+<div class="status-bar {% if status.running %}status-running{% else %}status-stopped{% endif %}">
+  <span class="status-dot"></span>
+  <strong>{% if status.running %}Running{% else %}Stopped{% endif %}</strong>
+  {% if status.stats %}
+  <span class="status-stats">
+    | Total Runs: {{ status.stats.total_batch_runs or 0 }}
+    | Today: {{ status.stats.today_runs or 0 }}
+    | Success Rate: {{ status.stats.success_rate or 0 }}%
+  </span>
+  {% endif %}
+</div>
+
+<!-- 워치리스트 카드 -->
+<div class="cards-grid">
+  {% for name, wl in watchlists.items() %}
+  <div class="card {% if not wl.enabled %}card-disabled{% endif %}">
+    <div class="card-header">
+      <h3>{{ name }}</h3>
+      <span class="badge {% if wl.enabled %}badge-active{% else %}badge-inactive{% endif %}">
+        {% if wl.enabled %}Active{% else %}Inactive{% endif %}
+      </span>
+    </div>
+
+    <div class="card-body">
+      <div class="card-info">
+        <div class="info-row">
+          <span class="info-label">Tickers:</span>
+          <span class="info-value">{{ wl.tickers | length }}
+            <small>({{ wl.tickers | join(', ') }})</small>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Schedule:</span>
+          <span class="info-value">{{ wl.schedule }} KST</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Type:</span>
+          <span class="info-value">{{ wl.analysis_type or 'full' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Notify:</span>
+          <span class="info-value">{{ wl.notifications | join(', ') }}</span>
+        </div>
+      </div>
+
+      <!-- 최근 실행 -->
+      {% if latest_runs.get(name) %}
+      {% set run = latest_runs[name] %}
+      <div class="last-run">
+        <small>Last Run: {{ run.timestamp[:16] }}</small>
+        <span class="run-result">
+          {{ run.success_count }}/{{ run.total_tickers }} OK
+          {% if run.fail_count > 0 %}
+          <span class="text-danger">({{ run.fail_count }} failed)</span>
+          {% endif %}
+        </span>
+      </div>
+      {% endif %}
+
+      <!-- 다음 실행 -->
+      {% for job in status.jobs if job.id == 'watchlist_' + name %}
+      <div class="next-run">
+        <small>Next: {{ job.next_run }}</small>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card-actions">
+      <button class="btn btn-primary btn-sm"
+              hx-post="/api/run/{{ name }}"
+              hx-target="#run-status-{{ name }}"
+              hx-swap="innerHTML">
+        Run Now
+      </button>
+      <div id="run-status-{{ name }}"
+           hx-get="/partials/run-status/{{ name }}"
+           hx-trigger="every 5s"
+           hx-swap="innerHTML">
+        {% if status.current_jobs.get(name) %}
+          {% set job = status.current_jobs[name] %}
+          {% if job.status == 'running' %}
+            <span class="text-warning">Running...</span>
+          {% elif job.status == 'completed' %}
+            <span class="text-success">Done ({{ job.success_count }}/{{ job.success_count + job.fail_count }})</span>
+          {% elif job.status == 'error' %}
+            <span class="text-danger">Error</span>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card card-empty">
+    <p>No watchlists configured.</p>
+    <a href="/watchlists" class="btn btn-primary">Create Watchlist</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
