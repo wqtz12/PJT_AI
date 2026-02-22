@@ -1,6 +1,7 @@
 """
 전문가 2: 가치분석 전문가 (Value Analyst)
 - PBR, EPS, 부채비율, 현금보유 등 펀더멘털 기반
+- ROE, PEG, 영업이익률 (Buffett/Lynch 원칙) - v2 추가
 - 52주 범위 내 위치, 애널리스트 목표가 괴리율 분석
 - 섹터별 밸류에이션 기준 적용 (config.yaml에서 로드)
 - NaN 명시적 처리: company_info에서 None이면 해당 항목 스킵
@@ -60,7 +61,7 @@ class ValueAnalyst:
     """가치분석 전문가 - 펀더멘털/밸류에이션 기반 (섹터별 기준 적용)"""
 
     NAME = "가치분석 전문가"
-    STYLE = "PBR/EPS/부채비율/현금 + 52주 범위 + 애널리스트 목표가 괴리율 (섹터별 기준)"
+    STYLE = "PBR/EPS/ROE/PEG/영업이익률 + 52주 범위 + 애널리스트 목표가 (Buffett/Lynch 원칙)"
 
     @staticmethod
     def analyze(df: pd.DataFrame, company_info: dict) -> ExpertOpinion:
@@ -145,7 +146,53 @@ class ValueAnalyst:
         else:
             reasons.append("[EPS] 데이터 없음 → 미분석")
 
-        # 4) 부채비율 (섹터별 기준 적용)
+        # 4) ROE - 자기자본이익률 (Buffett: 15%+ 지속 = 경쟁우위)
+        roe = _safe_info(company_info, "ROE")
+        if roe is not None:
+            analyzed_count += 1
+            roe_pct = roe * 100 if abs(roe) < 1 else roe  # 0.25 → 25%
+            if roe_pct > 20:
+                score += 2
+                reasons.append(f"ROE {roe_pct:.1f}% > 20% → 탁월한 수익성 (Buffett)")
+            elif roe_pct > 15:
+                score += 1
+                reasons.append(f"ROE {roe_pct:.1f}% > 15% → 우수한 수익성")
+            elif roe_pct > 0:
+                reasons.append(f"ROE {roe_pct:.1f}% → 양호")
+            else:
+                score -= 1
+                reasons.append(f"ROE {roe_pct:.1f}% → 자본 효율성 저조")
+            indicators.append(f"ROE={roe_pct:.1f}%")
+
+        # 5) PEG - 주가수익성장비율 (Lynch: PEG<1 저평가 성장주)
+        peg = _safe_info(company_info, "PEG")
+        if peg is not None and peg > 0:
+            analyzed_count += 1
+            if peg < 1.0:
+                score += 2
+                reasons.append(f"PEG {peg:.2f} < 1.0 → 성장 대비 저평가 (Lynch)")
+            elif peg < 2.0:
+                score += 1
+                reasons.append(f"PEG {peg:.2f} → 적정 수준")
+            elif peg > 3.0:
+                score -= 1
+                reasons.append(f"PEG {peg:.2f} > 3.0 → 성장 대비 고평가")
+            indicators.append(f"PEG={peg:.2f}")
+
+        # 6) 영업이익률 (Buffett: 높은 마진 = 경제적 해자)
+        op_margin = _safe_info(company_info, "영업이익률")
+        if op_margin is not None:
+            analyzed_count += 1
+            margin_pct = op_margin * 100 if abs(op_margin) < 1 else op_margin
+            if margin_pct > 25:
+                score += 1
+                reasons.append(f"영업이익률 {margin_pct:.1f}% > 25% → 강한 해자")
+            elif margin_pct < 5:
+                score -= 1
+                reasons.append(f"영업이익률 {margin_pct:.1f}% < 5% → 경쟁우위 약함")
+            indicators.append(f"영업이익률={margin_pct:.1f}%")
+
+        # 7) 부채비율 (섹터별 기준 적용)
         debt = _safe_info(company_info, "부채비율")
         debt_healthy = criteria["debt_healthy"]
         debt_warning = criteria["debt_warning"]
@@ -161,7 +208,7 @@ class ValueAnalyst:
                 reasons.append(f"부채비율 {debt:.1f}% > {debt_warning}% ({sector_label}) → 과다")
             indicators.append(f"부채비율={debt:.1f}%")
 
-        # 5) 보유현금 (섹터별 기준 적용)
+        # 8) 보유현금 (섹터별 기준 적용)
         cash = _safe_info(company_info, "현금")
         mktcap = _safe_info(company_info, "시가총액")
         cash_rich = criteria["cash_rich"]
@@ -177,7 +224,7 @@ class ValueAnalyst:
                 reasons.append(f"현금비율 {cash_ratio*100:.1f}% < {cash_poor*100:.0f}% ({sector_label}) → 부족")
             indicators.append(f"현금비율={cash_ratio*100:.1f}%")
 
-        # 6) 애널리스트 목표가 괴리율
+        # 9) 애널리스트 목표가 괴리율
         target = _safe_info(company_info, "애널리스트_목표가")
         if target is not None and target > 0:
             analyzed_count += 1

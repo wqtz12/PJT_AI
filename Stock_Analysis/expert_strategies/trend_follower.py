@@ -1,6 +1,7 @@
 """
 전문가 1: 추세추종 전문가 (Trend Follower)
 - 이동평균 배열, ADX 추세 강도, MACD 방향으로 판단
+- 거래량 확인 돌파 (Livermore 원칙) - v2 추가
 - 추세 방향에 순응하는 전략
 - NaN 명시적 처리: 지표 미계산 시 해당 항목 스킵
 - 매크로/감성 컨텍스트 반영 (Phase 4)
@@ -12,6 +13,7 @@ from common.constants import (
     ADX_STRONG, ADX_MODERATE,
     SCORE_BUY_THRESHOLD, SCORE_SELL_THRESHOLD,
     ATR_SELL_MULTIPLIER, ATR_STOP_MULTIPLIER, ATR_DEFAULT_RATIO,
+    VOLUME_SURGE_RATIO, VOLUME_ACTIVE_RATIO,
     calc_confidence,
     get_macro_context, get_sentiment_context,
     MACRO_SCORE_IMPACT_MAX,
@@ -85,7 +87,25 @@ class TrendFollower:
         else:
             reasons.append("[이동평균] 데이터 부족 → 미분석")
 
-        # 2) ADX 추세 강도 (+/-2)
+        # 2) 거래량 확인 돌파 - Livermore 원칙 (추세 보정)
+        vol = _safe_get(latest, "Volume")
+        obv = _safe_get(latest, "OBV")
+        if vol is not None and "Volume" in df.columns and len(df) >= 20:
+            vol_sma20 = df["Volume"].iloc[-20:].mean()
+            if vol_sma20 > 0:
+                vol_ratio = vol / vol_sma20
+                if score >= 2 and vol_ratio >= VOLUME_SURGE_RATIO:
+                    score += 1
+                    reasons.append(f"[거래량] 상승돌파 + 거래량 {vol_ratio:.1f}배 급증 → 진짜 돌파 (Livermore)")
+                elif score >= 2 and vol_ratio < VOLUME_ACTIVE_RATIO:
+                    score -= 1
+                    reasons.append(f"[거래량] 상승돌파 + 거래량 {vol_ratio:.1f}배 부족 → 가짜 돌파 주의")
+                elif score <= -2 and vol_ratio >= VOLUME_SURGE_RATIO:
+                    score -= 1
+                    reasons.append(f"[거래량] 하락 + 거래량 {vol_ratio:.1f}배 급증 → 투매 가속")
+                indicators.append(f"거래량비={vol_ratio:.1f}x")
+
+        # 3) ADX 추세 강도 (+/-2)
         if adx is not None:
             analyzed_count += 1
             if adx > ADX_STRONG:
@@ -100,7 +120,7 @@ class TrendFollower:
         else:
             reasons.append("[ADX] 데이터 부족 → 미분석")
 
-        # 3) MACD 크로스 (+/-2)
+        # 4) MACD 크로스 (+/-2)
         if macd is not None and macd_sig is not None:
             analyzed_count += 1
             if macd > macd_sig and macd > 0:
@@ -119,7 +139,7 @@ class TrendFollower:
         else:
             reasons.append("[MACD] 데이터 부족 → 미분석")
 
-        # 4) 120일선 대비 위치 (+/-1)
+        # 5) 120일선 대비 위치 (+/-1)
         if sma120 is not None:
             analyzed_count += 1
             if price > sma120:

@@ -1,6 +1,7 @@
 """
 전문가 3: 모멘텀 트레이더 (Momentum Trader)
 - RSI, 스토캐스틱, 거래량 폭증, 단기 수익률 기반
+- 상대강도(RS) 시장 대비 비교 (O'Neil CANSLIM 원칙) - v2 추가
 - 강한 모멘텀에 올라타는 전략
 - NaN 명시적 처리 + len(df) > 21 인덱싱 버그 수정
 - 매크로/감성 컨텍스트 반영 (Phase 4)
@@ -175,8 +176,37 @@ class MomentumTrader:
                 score -= 1
                 reasons.append(f"[일목] TK 하락크로스 + 빗각 {tenkan_angle:.0f}° → 하락 모멘텀 (-1)")
 
-        # ─── 매크로 환경 반영 (최대 ±3점) ───
+        # ─── 6) 상대강도 RS - O'Neil CANSLIM (시장 대비 성과 비교 ±2) ───
         macro = get_macro_context(company_info)
+        if macro is not None and len(df) > 21:
+            sp = macro.get("sp500")
+            if sp and sp.get("change_pct") is not None:
+                sp_ret = sp["change_pct"]  # S&P500 20일 수익률 %
+                close_20d_ago = df.iloc[-21]["Close"]
+                if close_20d_ago > 0:
+                    stock_ret_20d = (price / close_20d_ago - 1) * 100
+                    if sp_ret != 0:
+                        rs_ratio = stock_ret_20d / abs(sp_ret) if sp_ret != 0 else 1.0
+                    else:
+                        rs_ratio = 1.0 if stock_ret_20d >= 0 else -1.0
+
+                    if stock_ret_20d > sp_ret + 5:
+                        score += 2
+                        reasons.append(f"[상대강도] 종목 {stock_ret_20d:+.1f}% vs S&P {sp_ret:+.1f}% → 시장 대비 강세 (O'Neil)")
+                    elif stock_ret_20d > sp_ret:
+                        score += 1
+                        reasons.append(f"[상대강도] 종목 {stock_ret_20d:+.1f}% vs S&P {sp_ret:+.1f}% → 시장 대비 우수")
+                    elif stock_ret_20d < sp_ret - 5:
+                        score -= 2
+                        reasons.append(f"[상대강도] 종목 {stock_ret_20d:+.1f}% vs S&P {sp_ret:+.1f}% → 시장 대비 약세")
+                    elif stock_ret_20d < sp_ret:
+                        score -= 1
+                        reasons.append(f"[상대강도] 종목 {stock_ret_20d:+.1f}% vs S&P {sp_ret:+.1f}% → 시장 대비 열위")
+                    indicators.append(f"RS={stock_ret_20d:+.1f}%vsSP{sp_ret:+.1f}%")
+
+        # ─── 매크로 환경 반영 (최대 ±3점) ───
+        if macro is None:
+            macro = get_macro_context(company_info)
         if macro is not None:
             vix = macro.get("vix")
             sp = macro.get("sp500")

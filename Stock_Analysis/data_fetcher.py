@@ -227,6 +227,14 @@ def fetch_company_info(ticker: str) -> dict:
         "직원수": _safe_numeric(info.get("fullTimeEmployees")),
         "홈페이지": info.get("website") or None,
         "설명": info.get("longBusinessSummary") or None,
+        # ─── 투자자 원칙 강화 필드 (Buffett/Lynch/O'Neil) ───
+        "ROE": _safe_numeric(info.get("returnOnEquity")),
+        "PEG": _safe_numeric(info.get("pegRatio")),
+        "이익성장률": _safe_numeric(info.get("earningsGrowth")),
+        "매출성장률": _safe_numeric(info.get("revenueGrowth")),
+        "영업이익률": _safe_numeric(info.get("operatingMargins")),
+        "ROA": _safe_numeric(info.get("returnOnAssets")),
+        "잉여현금흐름": _safe_numeric(info.get("freeCashflow")),
     }
 
     # 수집된 필드 중 None 비율 로깅

@@ -67,20 +67,24 @@ Step 8: [stock-report] generate_all_charts(analysis_json, ticker)
 
 ## 5명의 전문가
 
-| 전문가 | 분석 관점 | 핵심 지표 |
-|--------|-----------|-----------|
-| 추세추종 (TrendFollower) | MA 배열 + 추세 강도 | SMA 5/20/60, ADX, MACD |
-| 가치분석 (ValueAnalyst) | 섹터별 밸류에이션 | PBR, EPS, 부채비율, 52주 범위 |
-| 모멘텀 (MomentumTrader) | 가격/거래량 모멘텀 | RSI, 스토캐스틱, 거래량, 5일 수익률 |
-| 역발상 (ContrarianExpert) | 극단 반전 포착 | BB %B, RSI 극단, 거래량 클라이맥스 |
-| 일목균형표 (IchimokuExpert) | 구름 + 빗각이론 | 구름, TK크로스, 빗각, 3분할 전략 |
+| 전문가 | 분석 관점 | 핵심 지표 | 투자자 원칙 |
+|--------|-----------|-----------|------------|
+| 추세추종 (TrendFollower) | MA 배열 + 추세 강도 | SMA, ADX, MACD, 거래량 확인 돌파 | Livermore |
+| 가치분석 (ValueAnalyst) | 펀더멘탈 밸류에이션 | ROE, PEG, PBR, EPS, 영업이익률, 52주 | Buffett/Lynch |
+| 모멘텀 (MomentumTrader) | 가격/거래량 모멘텀 | RSI, 스토캐스틱, 거래량, 상대강도(RS) | O'Neil CANSLIM |
+| 역발상 (ContrarianExpert) | 극단 반전 포착 | BB %B, RSI 극단, VIX, 연속하락 | Howard Marks |
+| 일목균형표 (IchimokuExpert) | 구름 + 삼역호전 | 구름, TK, 후행스팬, 빗각, 삼역호전/역전 | 一目山人 원전 |
 
-## 동적 가중치
+## 동적 가중치 + 시장 사이클
 
 시장 상태에 따라 전문가별 가중치가 자동 조정됩니다:
 - **ADX > 30** (강한 추세): 추세추종 + 일목 가중치 1.5배
 - **ADX < 20** (횡보): 가치분석 가중치 1.5배
 - **VIX > 25** (고변동): 역발상 가중치 1.5배
+
+시장 사이클 복합 판별 (Howard Marks 원칙):
+- **강세장** (VIX<15 + 금리하락 + S&P상승): 추세/모멘텀 강화
+- **약세장** (VIX>35 + 금리상승 + S&P하락): 매수 확신도 -10 감점
 
 ## 필요 MCP 서버
 

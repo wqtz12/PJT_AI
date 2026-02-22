@@ -1,6 +1,7 @@
 """
 전문가 5: 일목균형표 전문가 (Ichimoku Expert)
 - 일목균형표 구름 위치, TK 크로스, 후행스팬, 구름 두께로 판단
+- 삼역호전/삼역역전 (3조건 동시 충족 보너스) - v2 추가
 - 빗각이론으로 추세 강도 평가
 - 3분할 매수/매도가 산출
 - 매크로/감성 컨텍스트 반영
@@ -186,6 +187,20 @@ class IchimokuExpert:
             elif sent_score <= SENTIMENT_BEARISH_THRESHOLD and score < 0:
                 score -= 1
                 reasons.append(f"[감성] 뉴스 부정({sent_score:.2f}) → 하락 확인")
+
+        # ─── 7) 삼역호전 / 삼역역전 (3조건 동시 충족 보너스 ±3) ───
+        if cloud_top is not None and cloud_bottom is not None and tenkan is not None and kijun is not None and chikou_ref_price is not None:
+            # 삼역호전: ① 가격>구름상단 ② 전환선>기준선 ③ 후행스팬>26봉전가격
+            bullish_3 = (price > cloud_top) and (tenkan > kijun) and (price > chikou_ref_price)
+            # 삼역역전: ① 가격<구름하단 ② 전환선<기준선 ③ 후행스팬<26봉전가격
+            bearish_3 = (price < cloud_bottom) and (tenkan < kijun) and (price < chikou_ref_price)
+
+            if bullish_3:
+                score += 3
+                reasons.append("★ 삼역호전 (구름위+TK매수+후행확인) → 최강 매수 신호")
+            elif bearish_3:
+                score -= 3
+                reasons.append("★ 삼역역전 (구름아래+TK매도+후행확인) → 최강 매도 신호")
 
         # ─── 포지션 결정 ───
         atr_val = atr if atr is not None else price * ATR_DEFAULT_RATIO
