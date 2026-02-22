@@ -47,6 +47,7 @@ class MomentumTrader:
 
     NAME = "모멘텀 트레이더"
     STYLE = "RSI + 스토캐스틱 + 거래량 급증 + 단기 수익률 기반 모멘텀 매매"
+    EXPECTED_COUNT = 5  # RSI, 스토캐스틱, 거래량, 수익률, OBV
 
     @staticmethod
     def analyze(df: pd.DataFrame, company_info: dict) -> ExpertOpinion:
@@ -256,19 +257,19 @@ class MomentumTrader:
             reasons.append("⚠ 분석 가능한 지표 없음 → 판단 보류")
         elif score >= SCORE_BUY_THRESHOLD:
             position = "매수"
-            confidence = calc_confidence(score, "매수", analyzed_count)
+            confidence = calc_confidence(score, "매수", analyzed_count, MomentumTrader.EXPECTED_COUNT)
             buy_price = price * 0.99
             sell_price = price + atr_val * 2.5
             stop_loss = price - atr_val * 1.5
         elif score <= SCORE_SELL_THRESHOLD:
             position = "매도"
-            confidence = calc_confidence(score, "매도", analyzed_count)
+            confidence = calc_confidence(score, "매도", analyzed_count, MomentumTrader.EXPECTED_COUNT)
             buy_price = None
             sell_price = price * 1.01
             stop_loss = price + atr_val * 1.5
         else:
             position = "홀드"
-            confidence = calc_confidence(score, "홀드", analyzed_count)
+            confidence = calc_confidence(score, "홀드", analyzed_count, MomentumTrader.EXPECTED_COUNT)
             buy_price = price - atr_val * 1.5
             sell_price = price + atr_val * 2
             stop_loss = price - atr_val * 2

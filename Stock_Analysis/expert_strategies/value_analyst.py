@@ -62,6 +62,7 @@ class ValueAnalyst:
 
     NAME = "가치분석 전문가"
     STYLE = "PBR/EPS/ROE/PEG/영업이익률 + 52주 범위 + 애널리스트 목표가 (Buffett/Lynch 원칙)"
+    EXPECTED_COUNT = 9  # 52주, PBR, EPS, ROE, PEG, 영업이익률, 부채, 현금, 목표가
 
     @staticmethod
     def analyze(df: pd.DataFrame, company_info: dict) -> ExpertOpinion:
@@ -285,20 +286,20 @@ class ValueAnalyst:
             reasons.append("⚠ 분석 가능한 펀더멘털 데이터 없음 → 판단 보류")
         elif score >= SCORE_BUY_THRESHOLD:
             position = "매수"
-            confidence = calc_confidence(score, "매수", analyzed_count)
+            confidence = calc_confidence(score, "매수", analyzed_count, ValueAnalyst.EXPECTED_COUNT)
             buy_price = price * 0.97
             sell_target = target if target is not None and target > 0 else price * 1.30
             sell_price = sell_target
             stop_loss = (low_52w * 0.95) if low_52w is not None and low_52w > 0 else price * 0.80
         elif score <= SCORE_SELL_THRESHOLD_VALUE:
             position = "매도"
-            confidence = calc_confidence(score, "매도", analyzed_count)
+            confidence = calc_confidence(score, "매도", analyzed_count, ValueAnalyst.EXPECTED_COUNT)
             buy_price = None
             sell_price = price * 1.03
             stop_loss = price + atr_val * 3
         else:
             position = "홀드"
-            confidence = calc_confidence(score, "홀드", analyzed_count)
+            confidence = calc_confidence(score, "홀드", analyzed_count, ValueAnalyst.EXPECTED_COUNT)
             buy_price = (low_52w * 1.05) if low_52w is not None and low_52w > 0 else price * 0.85
             sell_price = target if target is not None and target > 0 else price * 1.20
             stop_loss = (low_52w * 0.90) if low_52w is not None and low_52w > 0 else price * 0.75

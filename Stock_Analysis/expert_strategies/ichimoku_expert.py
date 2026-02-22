@@ -43,6 +43,7 @@ class IchimokuExpert:
 
     NAME = "일목균형표 전문가"
     STYLE = "일목균형표 구름·전환선·기준선·후행스팬 + 빗각이론 기반 추세·전환 판단"
+    EXPECTED_COUNT = 5  # 구름위치, TK크로스, 후행스팬, 구름두께, 빗각
 
     @staticmethod
     def analyze(df: pd.DataFrame, company_info: dict) -> ExpertOpinion:
@@ -214,19 +215,19 @@ class IchimokuExpert:
             reasons.append("⚠ 일목균형표 지표 부재 → 판단 보류")
         elif score >= SCORE_BUY_THRESHOLD:
             position = "매수"
-            confidence = calc_confidence(score, "매수", analyzed_count)
+            confidence = calc_confidence(score, "매수", analyzed_count, IchimokuExpert.EXPECTED_COUNT)
             buy_price = price * 0.98
             sell_price = price + atr_val * ATR_SELL_MULTIPLIER
             stop_loss = price - atr_val * ATR_STOP_MULTIPLIER
         elif score <= SCORE_SELL_THRESHOLD:
             position = "매도"
-            confidence = calc_confidence(score, "매도", analyzed_count)
+            confidence = calc_confidence(score, "매도", analyzed_count, IchimokuExpert.EXPECTED_COUNT)
             buy_price = None
             sell_price = price * 1.02
             stop_loss = price + atr_val * ATR_STOP_MULTIPLIER
         else:
             position = "홀드"
-            confidence = calc_confidence(score, "홀드", analyzed_count)
+            confidence = calc_confidence(score, "홀드", analyzed_count, IchimokuExpert.EXPECTED_COUNT)
             buy_price = kijun if kijun is not None else price * 0.95
             sell_price = cloud_top if cloud_top is not None else price * 1.05
             stop_loss = price - atr_val * 2.5

@@ -1,6 +1,7 @@
 """
 전문가 4: 역발상 전문가 (Contrarian Expert)
 - 볼린저밴드 이탈, RSI 극단값, 공포/탐욕 역이용
+- Howard Marks 2차사고: ADX로 추세적 하락 vs 반전 기회 구별 - v2 추가
 - 과매도에서 매수, 과매수에서 매도하는 역발상 전략
 - NaN 명시적 처리: 지표 미계산 시 해당 항목 스킵
 - 매크로/감성 컨텍스트 반영 (Phase 4)
@@ -60,7 +61,8 @@ class ContrarianExpert:
     """역발상 전문가 - 볼린저밴드/RSI 극단/거래량 급변 역이용"""
 
     NAME = "역발상 전문가"
-    STYLE = "볼린저밴드 이탈 + RSI 극단값 + 거래량 클라이맥스 역이용 반전매매"
+    STYLE = "볼린저밴드 이탈 + RSI 극단값 + 2차사고(ADX 추세/반전 구별) 역이용 반전매매 (Howard Marks 원칙)"
+    EXPECTED_COUNT = 3  # BB, RSI, 52주
 
     @staticmethod
     def analyze(df: pd.DataFrame, company_info: dict) -> ExpertOpinion:
@@ -107,17 +109,17 @@ class ContrarianExpert:
                 # ADX 체크: 강한 하락추세에서는 반등 기대 약화
                 if adx_val is not None and adx_val > ADX_STRONG:
                     score += 1  # 강한 하락추세 → 약한 매수만
-                    reasons.append(f"RSI {rsi:.1f} + ADX {adx_val:.1f}>30 → 추세적 과매도, 약한 반등 기대")
+                    reasons.append(f"RSI {rsi:.1f} + ADX {adx_val:.1f}>30 → 추세적 과매도, 약한 반등만 (Marks 2차사고: 추세 중 반전 제한)")
                 else:
-                    score += 3  # 기존 로직 유지
-                    reasons.append(f"RSI {rsi:.1f} → 극심한 과매도, 반등 매수 기회")
+                    score += 3  # 추세 약화 확인 → 반전 기회
+                    reasons.append(f"RSI {rsi:.1f} + ADX 약화 → 극심한 과매도, 반등 매수 기회 (Marks: 추세 약화 확인)")
             elif rsi < RSI_CONTRARIAN_LOW:
                 if adx_val is not None and adx_val > ADX_STRONG:
-                    # 추세적 과매도 → 매수 억제
-                    reasons.append(f"RSI {rsi:.1f} + ADX {adx_val:.1f}>30 → 추세적 과매도, 관망")
+                    # 추세적 과매도 → 매수 억제 (Marks 2차사고)
+                    reasons.append(f"RSI {rsi:.1f} + ADX {adx_val:.1f}>30 → 추세적 과매도, 관망 (Marks 2차사고: 추세 지속 가능)")
                 else:
                     score += 1
-                    reasons.append(f"RSI {rsi:.1f} → 과매도 접근, 바닥 탐색")
+                    reasons.append(f"RSI {rsi:.1f} → 과매도 접근, 바닥 탐색 (Marks: 공포 구간 탐색)")
             elif rsi > RSI_EXTREME_HIGH:
                 score -= 3
                 reasons.append(f"RSI {rsi:.1f} → 극심한 과매수, 차익실현 매도")
@@ -206,16 +208,16 @@ class ContrarianExpert:
                 vix_val = vix["current"]
                 if vix_val > 35:
                     score += 2
-                    reasons.append(f"[매크로] VIX {vix_val:.0f} > 35 → 극단적 공포 = 역발상 매수 (+2)")
+                    reasons.append(f"[매크로] VIX {vix_val:.0f} > 35 → 극단적 공포 = 역발상 매수 (Marks: 남들이 공포할 때 매수)")
                 elif vix_val > 30:
                     score += 1
-                    reasons.append(f"[매크로] VIX {vix_val:.0f} > 30 → 공포 구간 = 역발상 매수 (+1)")
+                    reasons.append(f"[매크로] VIX {vix_val:.0f} > 30 → 공포 구간 = 역발상 매수 (Marks)")
                 elif vix_val < 12:
                     score -= 2
-                    reasons.append(f"[매크로] VIX {vix_val:.0f} < 12 → 극단적 안일함 = 역발상 매도 (-2)")
+                    reasons.append(f"[매크로] VIX {vix_val:.0f} < 12 → 극단적 안일함 = 역발상 매도 (Marks: 남들이 탐욕할 때 매도)")
                 elif vix_val < 15:
                     score -= 1
-                    reasons.append(f"[매크로] VIX {vix_val:.0f} < 15 → 안일 구간 = 역발상 매도 (-1)")
+                    reasons.append(f"[매크로] VIX {vix_val:.0f} < 15 → 안일 구간 = 역발상 매도 (Marks)")
 
         # ─── 감성 반영 (역발상: 극단적 감성의 반대 방향) ───
         sentiment = get_sentiment_context(company_info)
@@ -246,19 +248,19 @@ class ContrarianExpert:
             reasons.append("⚠ 분석 가능한 지표 없음 → 판단 보류")
         elif score >= SCORE_BUY_THRESHOLD:
             position = "매수"
-            confidence = calc_confidence(score, "매수", analyzed_count)
+            confidence = calc_confidence(score, "매수", analyzed_count, ContrarianExpert.EXPECTED_COUNT)
             buy_price = _bb_lower
             sell_price = _bb_mid
             stop_loss = _bb_lower * 0.92
         elif score <= SCORE_SELL_THRESHOLD:
             position = "매도"
-            confidence = calc_confidence(score, "매도", analyzed_count)
+            confidence = calc_confidence(score, "매도", analyzed_count, ContrarianExpert.EXPECTED_COUNT)
             buy_price = None
             sell_price = _bb_upper
             stop_loss = _bb_upper * 1.05
         else:
             position = "홀드"
-            confidence = calc_confidence(score, "홀드", analyzed_count)
+            confidence = calc_confidence(score, "홀드", analyzed_count, ContrarianExpert.EXPECTED_COUNT)
             buy_price = _bb_lower
             sell_price = _bb_upper
             stop_loss = price - atr_val * 3

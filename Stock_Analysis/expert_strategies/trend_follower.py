@@ -45,6 +45,7 @@ class TrendFollower:
 
     NAME = "추세추종 전문가"
     STYLE = "이동평균 배열 + ADX 추세 강도 + MACD 방향 기반 순추세 매매"
+    EXPECTED_COUNT = 4  # MA배열, ADX, MACD, 120일선
 
     @staticmethod
     def analyze(df: pd.DataFrame, company_info: dict) -> ExpertOpinion:
@@ -216,19 +217,19 @@ class TrendFollower:
             reasons.append("⚠ 분석 가능한 지표 없음 → 판단 보류")
         elif score >= SCORE_BUY_THRESHOLD:
             position = "매수"
-            confidence = calc_confidence(score, "매수", analyzed_count)
+            confidence = calc_confidence(score, "매수", analyzed_count, TrendFollower.EXPECTED_COUNT)
             buy_price = price * 0.98
             sell_price = price + atr_val * ATR_SELL_MULTIPLIER
             stop_loss = price - atr_val * ATR_STOP_MULTIPLIER
         elif score <= SCORE_SELL_THRESHOLD:
             position = "매도"
-            confidence = calc_confidence(score, "매도", analyzed_count)
+            confidence = calc_confidence(score, "매도", analyzed_count, TrendFollower.EXPECTED_COUNT)
             buy_price = None
             sell_price = price * 1.02
             stop_loss = price + atr_val * ATR_STOP_MULTIPLIER
         else:
             position = "홀드"
-            confidence = calc_confidence(score, "홀드", analyzed_count)
+            confidence = calc_confidence(score, "홀드", analyzed_count, TrendFollower.EXPECTED_COUNT)
             buy_price = sma60 if sma60 is not None else price * 0.90
             sell_price = (sma20 * 1.1) if sma20 is not None else price * 1.10
             stop_loss = price - atr_val * 2.5

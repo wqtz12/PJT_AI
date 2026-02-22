@@ -59,12 +59,20 @@ def aggregate_expert_opinions(opinions: list, df, company_info: dict) -> dict:
         if vix_data and vix_data.get("current"):
             vix = float(vix_data["current"])
 
-    # 전문가별 가중치 결정
+    # 섹터 감지 (섹터별 가중치 편향용)
+    sector = None
+    if company_info:
+        raw_sector = company_info.get("섹터") or company_info.get("sector") or ""
+        sector = raw_sector.lower().replace(" ", "_")
+    sector_bias = cfg.get("sector_weight_bias", {}).get(sector, {}) if sector else {}
+
+    # 전문가별 가중치 결정 (ADX/VIX 동적 + 섹터 편향)
     weights = {}
     for op in opinions:
         name = op.expert_name
         w = base_w
 
+        # 1단계: ADX/VIX 기반 동적 가중치
         if "추세" in name and adx is not None and adx > cfg.get("trend_boost_adx_threshold", 30):
             w = base_w * boost
         elif "일목" in name and adx is not None and adx > cfg.get("trend_boost_adx_threshold", 30):
@@ -74,7 +82,14 @@ def aggregate_expert_opinions(opinions: list, df, company_info: dict) -> dict:
         elif "역발상" in name and vix is not None and vix > cfg.get("contrarian_boost_vix_threshold", 25):
             w = base_w * boost
 
-        weights[name] = w
+        # 2단계: 섹터별 가중치 편향 곱셈
+        if sector_bias:
+            for keyword, bias_mult in sector_bias.items():
+                if keyword in name:
+                    w *= bias_mult
+                    break
+
+        weights[name] = round(w, 3)
 
     # 가중 집계
     w_buy = sum(weights.get(o.expert_name, base_w) for o in opinions if o.position == "매수")
@@ -136,6 +151,9 @@ def aggregate_expert_opinions(opinions: list, df, company_info: dict) -> dict:
     elif market_phase == "강세장" and dominant == "매도":
         confidence_penalty = -5  # 강세장에서 매도는 소폭 감점
 
+    # ─── 전문가 충돌 패턴 해석 ───
+    opinion_conflicts = _detect_opinion_conflicts(opinions)
+
     return {
         "weighted_buy": round(w_buy, 2),
         "weighted_sell": round(w_sell, 2),
@@ -149,4 +167,53 @@ def aggregate_expert_opinions(opinions: list, df, company_info: dict) -> dict:
             "reasons": cycle_reasons,
             "confidence_penalty": confidence_penalty,
         },
+        "opinion_conflicts": opinion_conflicts,
     }
+
+
+def _detect_opinion_conflicts(opinions: list) -> list:
+    """
+    전문가 의견 충돌 패턴 해석
+
+    전문가간 포지션이 서로 상충할 때 그 의미를 해석합니다.
+    5명의 전문가 중 특정 조합의 충돌은 시장 상태에 대한 중요한 신호입니다.
+    """
+    positions = {}
+    for o in opinions:
+        positions[o.expert_name] = o.position
+
+    conflicts = []
+
+    # 추세추종 vs 역발상 충돌 = 변곡점
+    trend_pos = positions.get("추세추종 전문가")
+    contra_pos = positions.get("역발상 전문가")
+    if trend_pos and contra_pos:
+        if trend_pos == "매수" and contra_pos == "매도":
+            conflicts.append("추세추종↑ vs 역발상↓ → 추세 피크 가능성, 분할 매도 고려")
+        elif trend_pos == "매도" and contra_pos == "매수":
+            conflicts.append("추세추종↓ vs 역발상↑ → 바닥 반전 가능성, 분할 매수 고려")
+
+    # 가치분석 vs 모멘텀 충돌 = 가치함정 or 고평가 성장
+    value_pos = positions.get("가치분석 전문가")
+    momentum_pos = positions.get("모멘텀 트레이더")
+    if value_pos and momentum_pos:
+        if value_pos == "매수" and momentum_pos == "매도":
+            conflicts.append("가치분석↑ vs 모멘텀↓ → 가치함정 주의, 모멘텀 반전 확인 후 진입")
+        elif value_pos == "매도" and momentum_pos == "매수":
+            conflicts.append("가치분석↓ vs 모멘텀↑ → 고평가 성장주, 추세 지속 여부 확인")
+
+    # 일목균형표 vs 역발상 충돌 = 구름 위 과매수
+    ichimoku_pos = positions.get("일목균형표 전문가")
+    if ichimoku_pos and contra_pos:
+        if ichimoku_pos == "매수" and contra_pos == "매도":
+            conflicts.append("일목균형표↑ vs 역발상↓ → 구름 위 과매수, 단기 조정 후 재진입 고려")
+        elif ichimoku_pos == "매도" and contra_pos == "매수":
+            conflicts.append("일목균형표↓ vs 역발상↑ → 구름 아래 과매도, 반전 시점 탐색")
+
+    # 전원 일치 = 높은 확신 (but 컨센서스 과밀 주의)
+    unique_positions = set(positions.values())
+    if len(positions) >= 4 and len(unique_positions) == 1:
+        pos = unique_positions.pop()
+        conflicts.append(f"5전문가 {pos} 일치 → 높은 확신, 단 컨센서스 과밀 시 역발상 관점 점검")
+
+    return conflicts

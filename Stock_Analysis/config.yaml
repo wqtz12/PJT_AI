@@ -488,6 +488,31 @@ expert_aggregation:
   contrarian_boost_vix_threshold: 25    # VIX>25 → 역발상 가중치↑
   boost_multiplier: 1.5                 # 부스트 배율 (1.5배)
 
+  # 섹터별 전문가 가중치 편향 (v2.1)
+  # 각 섹터의 특성에 맞게 특정 전문가의 신뢰도를 조정
+  # 키: 섹터명(소문자), 값: {전문가키워드: 배율}
+  sector_weight_bias:
+    technology:
+      모멘텀: 1.3                # 기술주는 모멘텀 강함
+      가치: 0.8                  # 기술주 PBR 높아 가치분석 신뢰 낮음
+    financial_services:
+      가치: 1.3                  # 금융은 PBR/ROE 중심
+      모멘텀: 0.8                # 금융주 모멘텀 약함
+    utilities:
+      역발상: 1.3                # 방어주는 평균회귀 강함
+      추세: 0.8                  # 유틸리티 추세 약함
+    energy:
+      추세: 1.2                  # 에너지는 유가 추세 연동
+      역발상: 1.2                # 에너지 극단 반전 빈번
+    healthcare:
+      모멘텀: 1.2                # 바이오텍 모멘텀 강함
+      가치: 0.8                  # 적자 바이오 가치분석 한계
+    consumer_cyclical:
+      추세: 1.2                  # 경기소비재 추세 민감
+    consumer_defensive:
+      가치: 1.2                  # 필수소비재 가치투자 적합
+      역발상: 1.1                # 방어주 평균회귀
+
 # ─── 3분할 매수/매도 설정 ───
 split_entry:
   conservative_atr_mult: 2.0            # 1차 매수: price - ATR×2 (보수적)

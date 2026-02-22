@@ -143,17 +143,23 @@ def get_sentiment_context(company_info: dict):
     return company_info.get("_sentiment")
 
 
-def calc_confidence(score: int, position: str, analyzed_count: int = 1) -> float:
+def calc_confidence(score: int, position: str, analyzed_count: int = 1,
+                    expected_count: int = 0) -> float:
     """
-    통일된 확신도 계산 공식
+    통일된 확신도 계산 공식 (v2.1: coverage 반영)
 
     Args:
         score: 전문가 점수 (양수=매수, 음수=매도)
         position: "매수" / "매도" / "홀드"
         analyzed_count: 분석에 사용된 지표 수 (0이면 데이터 부족)
+        expected_count: 전문가가 분석 가능한 전체 지표 수 (0이면 coverage 미적용, 하위 호환)
 
     Returns:
         float: 확신도 (0-100%)
+
+    Notes:
+        coverage_factor: 3개 지표 score=3 vs 7개 지표 score=3의 확신도 차이를 표현.
+        expected_count=0이면 기존 공식과 동일 (하위 호환).
     """
     if analyzed_count == 0:
         return CONFIDENCE_NO_DATA
@@ -161,8 +167,16 @@ def calc_confidence(score: int, position: str, analyzed_count: int = 1) -> float
     abs_score = abs(score)
 
     if position == "매수":
-        return min(CONFIDENCE_MAX, CONFIDENCE_BASE_BUY + abs_score * CONFIDENCE_WEIGHT_BUY)
+        base = min(CONFIDENCE_MAX, CONFIDENCE_BASE_BUY + abs_score * CONFIDENCE_WEIGHT_BUY)
     elif position == "매도":
-        return min(CONFIDENCE_MAX, CONFIDENCE_BASE_SELL + abs_score * CONFIDENCE_WEIGHT_SELL)
+        base = min(CONFIDENCE_MAX, CONFIDENCE_BASE_SELL + abs_score * CONFIDENCE_WEIGHT_SELL)
     else:  # 홀드
-        return CONFIDENCE_BASE_HOLD + abs_score * CONFIDENCE_WEIGHT_HOLD
+        base = CONFIDENCE_BASE_HOLD + abs_score * CONFIDENCE_WEIGHT_HOLD
+
+    # coverage 반영: expected_count가 주어진 경우에만 적용
+    if expected_count > 0 and analyzed_count < expected_count:
+        coverage = min(1.0, analyzed_count / expected_count)
+        # 70~100% 범위로 보정 (최소 70%는 보장)
+        base = base * (0.7 + 0.3 * coverage)
+
+    return round(base, 1)
