@@ -1,0 +1,498 @@
+# ═══════════════════════════════════════════════════════════════
+# Stock Analysis 통합 설정 파일
+# ═══════════════════════════════════════════════════════════════
+# 이 파일에서 분석기의 모든 주요 파라미터를 관리합니다.
+# 값을 수정하면 재시작 시 반영됩니다.
+
+# ─── 데이터베이스 설정 (PostgreSQL) ───
+database:
+  enabled: true                       # DB 사용 여부 (false → JSON 폴백)
+  host: "localhost"                    # 환경변수 DB_HOST로 오버라이드 가능
+  port: 5432                           # 환경변수 DB_PORT로 오버라이드 가능
+  name: "stock_analysis"               # 환경변수 DB_NAME으로 오버라이드 가능
+  user: "stock_user"                   # 환경변수 DB_USER로 오버라이드 가능
+  password: "stock_pass_dev_2024"      # 환경변수 DB_PASSWORD로 오버라이드 가능
+  fallback_to_json: true               # DB 불가 시 기존 JSON 방식 자동 폴백
+  session_ttl_hours: 24                # 분석 세션 기본 TTL (시간)
+
+# ─── 기본 설정 ───
+defaults:
+  ticker: "PLUG"                # 기본 분석 종목
+  period: "6mo"                 # 기본 데이터 기간
+  output_dir: "output"          # 결과 출력 디렉토리
+  log_level: "INFO"             # 로그 레벨 (DEBUG/INFO/WARNING/ERROR)
+  log_to_file: true             # 파일 로깅 활성화
+
+# ─── 데이터 수집 (data_fetcher) ───
+data:
+  # 기간별 최소 필요 행 수 (기술적 지표 계산에 필요)
+  min_rows:
+    "1mo": 15
+    "3mo": 40
+    "6mo": 80
+    "1y": 180
+    "2y": 350
+    "5y": 800
+
+  # 필수 OHLCV 컬럼
+  required_columns:
+    - "Open"
+    - "High"
+    - "Low"
+    - "Close"
+    - "Volume"
+
+  max_nan_ratio: 0.10           # NaN 허용 비율 (10%)
+  stale_data_days: 5            # 이 일수 초과 시 "오래된 데이터" 경고
+  zero_volume_warn_ratio: 0.20  # 거래량 0 일수 비율 경고 기준
+
+  # 뉴스/애널리스트 수집
+  max_news_articles: 10         # 최대 뉴스 수집 건수
+  max_analyst_ratings: 8        # 최대 애널리스트 등급 수집 건수
+
+# ─── 기술적 지표 파라미터 (technical_analysis) ───
+indicators:
+  # 이동평균 윈도우
+  sma_windows: [5, 20, 60, 120]
+  ema_windows: [12, 26]
+
+  # RSI
+  rsi_window: 14
+
+  # 볼린저밴드
+  bb_window: 20
+  bb_std_dev: 2
+
+  # ATR
+  atr_window: 14
+
+  # ADX
+  adx_window: 14
+
+  # 일목균형표 파라미터
+  ichimoku:
+    tenkan_window: 9                # 전환선 기간
+    kijun_window: 26                # 기준선 기간
+    senkou_b_window: 52             # 선행스팬B 기간
+    chikou_shift: 26                # 후행스팬 시프트
+
+  # 지표별 최소 필요 행 수 (안전 스킵 기준)
+  min_rows_per_indicator:
+    moving_averages: 5
+    rsi: 15
+    macd: 27
+    bollinger_bands: 21
+    stochastic: 15
+    atr: 15
+    adx: 30
+    obv: 2
+    ichimoku: 53                    # 52일 기간 + 1
+    ichimoku_angles: 53             # 빗각 계산
+
+# ─── 전문가 전략 임계값 (expert_strategies) ───
+thresholds:
+  # RSI 임계값
+  rsi:
+    overbought: 70              # 과매수 경계
+    oversold: 30                # 과매도 경계
+    extreme_high: 75            # 극단 과매수
+    extreme_low: 25             # 극단 과매도
+    momentum_high: 60           # 상승 모멘텀 하한
+    momentum_low: 45            # 약한 모멘텀 상한
+    contrarian_high: 65         # 역발상 과매수 접근
+    contrarian_low: 35          # 역발상 과매도 접근
+
+  # 볼린저밴드 %B 임계값
+  bollinger:
+    upper_breach: 1.0           # 상단 이탈
+    upper_near: 0.85            # 상단 근접
+    lower_breach: 0.0           # 하단 이탈
+    lower_near: 0.15            # 하단 근접
+    squeeze_ratio: 0.6          # 밴드 수축 기준 (평균 대비)
+    expand_ratio: 1.5           # 밴드 확장 기준
+
+  # ADX 추세 강도
+  adx:
+    strong: 30                  # 강한 추세
+    moderate: 20                # 추세 형성
+
+  # 스토캐스틱
+  stochastic:
+    overbought: 80
+    oversold: 20
+
+  # 일목균형표 임계값
+  ichimoku:
+    cloud_thick_ratio: 0.02         # 구름 두께/가격 > 2% = 강한 추세
+    cloud_thin_ratio: 0.005         # < 0.5% = 약한/횡보
+    angle_strong: 26                # 강한 추세 각도 (도)
+    angle_flat: 10                  # 횡보 각도 (도)
+    angle_window: 5                 # 빗각 계산 기간 (일)
+
+  # 거래량 비율
+  volume:
+    surge_ratio: 2.0            # 폭증 기준 (20일 평균 대비)
+    active_ratio: 1.3           # 활발 기준
+    dry_ratio: 0.5              # 부진 기준
+
+  # 52주 범위 위치
+  range_52w:
+    low_zone: 0.25              # 하위 25% → 저평가
+    mid_low: 0.40               # 하위 40%
+    high_zone: 0.80             # 상위 80% → 고평가
+
+  # 5일 수익률 (%)
+  return_5d:
+    strong: 5.0                 # 강한 상승
+    moderate: 2.0               # 양호
+    decline: -2.0               # 하락
+    crash: -5.0                 # 급락
+
+  # 포지션 결정
+  score:
+    buy_threshold: 3            # 이 이상이면 매수
+    sell_threshold: -3          # 이 이하이면 매도
+    sell_threshold_value: -2    # 가치분석 매도 기준 (보수적)
+
+  # ATR 배수 (목표가/손절가)
+  atr:
+    sell_multiplier: 3.0        # 매도 목표 = price + ATR * 3
+    stop_multiplier: 2.0        # 손절 = price - ATR * 2
+    default_ratio: 0.05         # ATR 없을 때 가격 대비 비율
+
+# ─── 확신도 계산 (confidence) ───
+confidence:
+  max: 90                       # 최대 확신도
+  base_buy: 50                  # 매수 기본값
+  base_sell: 50                 # 매도 기본값
+  base_hold: 35                 # 홀드 기본값
+  weight_buy: 7                 # 매수 점수당 가중치
+  weight_sell: 7                # 매도 점수당 가중치
+  weight_hold: 5                # 홀드 점수당 가중치
+  no_data: 10                   # 데이터 부족 시
+
+# ─── 매크로경제 지표 설정 (macro_fetcher) ───
+macro:
+  indicators:
+    vix:
+      ticker: "^VIX"
+      name: "VIX (변동성지수)"
+    treasury_10y:
+      ticker: "^TNX"
+      name: "10년 국채금리"
+    sp500:
+      ticker: "^GSPC"
+      name: "S&P 500"
+    oil:
+      ticker: "CL=F"
+      name: "WTI 원유"
+    gold:
+      ticker: "GC=F"
+      name: "금"
+    dollar:
+      ticker: "DX-Y.NYB"
+      name: "달러 인덱스"
+
+  cache_ttl_minutes: 120          # 매크로 캐시 TTL (2시간)
+  fetch_period: "3mo"             # 수집 기간 (지표 계산용)
+
+  # VIX 수준 분류 기준
+  vix_levels:
+    low: 15                       # 이하 → 저변동
+    normal: 20                    # 이하 → 보통
+    elevated: 25                  # 이하 → 경계
+    high: 35                      # 이하 → 고변동
+                                  # 35 이상 → 극단
+
+  # 추세 판단 기준
+  trend_window: 5                 # 최근 N일 기준
+  trend_threshold_pct: 1.0        # 변동률 1% 이상이면 추세
+
+  # 전문가 점수 조정 한도
+  score_impact_max: 3
+  vix_weight: 1.0
+  rate_weight: 1.0
+
+# ─── 감성 분석 키워드 (scraper_adapter) ───
+sentiment:
+  positive_keywords:
+    - "surge"
+    - "rally"
+    - "gain"
+    - "rise"
+    - "bullish"
+    - "upgrade"
+    - "beat"
+    - "record"
+    - "growth"
+    - "strong"
+    - "buy"
+
+  negative_keywords:
+    - "drop"
+    - "fall"
+    - "decline"
+    - "bearish"
+    - "downgrade"
+    - "miss"
+    - "loss"
+    - "weak"
+    - "sell"
+    - "cut"
+    - "concern"
+
+  positive_keywords_kr:
+    - "상승"
+    - "급등"
+    - "호실적"
+    - "수주"
+    - "매수"
+    - "목표가 상향"
+    - "사상 최고"
+    - "영업이익 증가"
+    - "성장"
+    - "흑자"
+    - "수혜"
+
+  negative_keywords_kr:
+    - "하락"
+    - "급락"
+    - "적자"
+    - "실적 부진"
+    - "매도"
+    - "목표가 하향"
+    - "손실"
+    - "감소"
+    - "하향"
+    - "리스크"
+    - "우려"
+
+  # 전문가 통합 설정
+  min_articles_for_full_confidence: 5
+  weight: 0.15
+  score_impact_max: 2
+  bullish_threshold: 0.3
+  bearish_threshold: -0.3
+  extreme_bullish: 0.6
+  extreme_bearish: -0.6
+
+# ─── 차트 설정 (visualizer) ───
+chart:
+  dpi: 150                      # 차트 해상도
+  candlestick_figsize: [16, 10]
+  dashboard_figsize: [16, 20]
+  performance_figsize: [14, 10]
+
+  # 이동평균 색상
+  sma_colors:
+    SMA_5: "#FF6B6B"
+    SMA_20: "#4ECDC4"
+    SMA_60: "#45B7D1"
+    SMA_120: "#96CEB4"
+
+  # 캔들스틱 색상 (한국식: 상승=빨강, 하락=파랑)
+  candle_up: "red"
+  candle_down: "blue"
+
+# ─── 섹터별 밸류에이션 기준 (value_analyst) ───
+# 각 섹터의 적정 PBR/부채비율/현금비율 기준
+# yfinance info["sector"] 값을 소문자 변환 후 매칭
+sector_valuation:
+  # 기본값 (섹터 불명 시 사용)
+  default:
+    pbr_low: 1.0              # 이 이하 → 저평가
+    pbr_high: 3.0             # 이 이상 → 고평가
+    debt_healthy: 50          # 건전 부채비율 (%)
+    debt_warning: 100         # 경고 부채비율 (%)
+    cash_rich: 0.20           # 풍부한 현금비율 (시총 대비)
+    cash_poor: 0.05           # 부족한 현금비율
+    eps_label: "일반"
+
+  technology:
+    pbr_low: 3.0              # 기술주는 PBR 3 이하도 저평가일 수 있음
+    pbr_high: 10.0            # 성장성 반영 시 PBR 10도 수용 가능
+    debt_healthy: 40
+    debt_warning: 80
+    cash_rich: 0.25
+    cash_poor: 0.10
+    eps_label: "기술"
+
+  energy:
+    pbr_low: 0.8              # 에너지는 자산 중심 → PBR 기준 낮음
+    pbr_high: 2.0
+    debt_healthy: 60          # 설비 투자로 부채 비중 높음
+    debt_warning: 120
+    cash_rich: 0.15
+    cash_poor: 0.05
+    eps_label: "에너지"
+
+  healthcare:
+    pbr_low: 2.0
+    pbr_high: 8.0             # 바이오텍 높은 PBR 허용
+    debt_healthy: 40
+    debt_warning: 80
+    cash_rich: 0.30           # 임상 비용 대비 현금 중요
+    cash_poor: 0.10
+    eps_label: "헬스케어"
+
+  financial_services:
+    pbr_low: 0.7              # 금융은 PBR 1 이하가 흔함
+    pbr_high: 2.0
+    debt_healthy: 200         # 금융업 특성상 높은 부채비율 정상
+    debt_warning: 500
+    cash_rich: 0.10
+    cash_poor: 0.02
+    eps_label: "금융"
+
+  industrials:
+    pbr_low: 1.5
+    pbr_high: 4.0
+    debt_healthy: 60
+    debt_warning: 120
+    cash_rich: 0.15
+    cash_poor: 0.05
+    eps_label: "산업재"
+
+  consumer_cyclical:
+    pbr_low: 1.5
+    pbr_high: 5.0
+    debt_healthy: 50
+    debt_warning: 100
+    cash_rich: 0.15
+    cash_poor: 0.05
+    eps_label: "경기소비재"
+
+  consumer_defensive:
+    pbr_low: 2.0
+    pbr_high: 6.0
+    debt_healthy: 60
+    debt_warning: 100
+    cash_rich: 0.10
+    cash_poor: 0.03
+    eps_label: "필수소비재"
+
+  utilities:
+    pbr_low: 0.8
+    pbr_high: 2.5
+    debt_healthy: 80          # 유틸리티는 안정적 부채 허용
+    debt_warning: 150
+    cash_rich: 0.10
+    cash_poor: 0.03
+    eps_label: "유틸리티"
+
+  real_estate:
+    pbr_low: 0.8
+    pbr_high: 2.5
+    debt_healthy: 70
+    debt_warning: 150
+    cash_rich: 0.10
+    cash_poor: 0.03
+    eps_label: "부동산"
+
+  communication_services:
+    pbr_low: 1.5
+    pbr_high: 5.0
+    debt_healthy: 50
+    debt_warning: 100
+    cash_rich: 0.20
+    cash_poor: 0.05
+    eps_label: "커뮤니케이션"
+
+  basic_materials:
+    pbr_low: 1.0
+    pbr_high: 3.0
+    debt_healthy: 50
+    debt_warning: 100
+    cash_rich: 0.15
+    cash_poor: 0.05
+    eps_label: "소재"
+
+# ─── 백테스트 & VaR 설정 ───
+backtest:
+  var_confidence: 0.95            # VaR 신뢰수준 (95%)
+  var_holding_days: 1             # VaR 보유 기간 (일)
+  risk_free_rate: 0.04            # 연간 무위험수익률 (4%)
+  trading_days_per_year: 252      # 연간 거래일 수
+
+# ─── 리포트 설정 ───
+report:
+  max_news_display: 8           # 리포트에 표시할 뉴스 수
+  rationale_max_length: 60      # 근거 줄바꿈 기준 문자수
+
+# ─── 에러 추적 & 자동 분석 설정 ───
+error_tracking:
+  enabled: true                   # 에러 추적 활성화
+  log_dir: "output/error_logs"    # 에러 로그 디렉토리
+  retention_days: 30              # 로그 보관 일수
+
+  # 자동 분석 설정
+  auto_analysis:
+    enabled: true                 # 매일 전날 로그 자동 분석
+    auto_correct: true            # 자동 수정 적용 여부
+
+  # 패턴 감지 기준
+  pattern_detection:
+    recurring_threshold: 3        # 동일 에러 N회 이상 → 반복 패턴
+    module_instability_types: 2   # 같은 모듈 에러 유형 N개 이상 → 불안정
+
+  # 자동 수정 안전 한계
+  correction_limits:
+    max_cache_ttl: 480            # 캐시 TTL 최대 (분)
+    min_cache_ttl: 5              # 캐시 TTL 최소 (분)
+    max_retry: 5                  # 최대 재시도 횟수
+    max_timeout_sec: 120          # 최대 타임아웃 (초)
+
+# ─── 가격 교차검증 설정 (P0-1) ───
+price_validation:
+  enabled: true                     # 가격 검증 활성화
+  threshold_pct: 5.0                # 괴리율 경고 임계값 (5%)
+  auto_refresh: true                # 괴리 시 자동 캐시 무효화/재수집
+  stale_days_warning: 3             # N영업일 이상 지연 시 경고
+
+# ─── 캐시 동적 TTL 설정 (P0-2) ───
+cache:
+  market_aware_ttl: true              # 시장 상태 연동 TTL 활성화
+  us_market_hours:
+    open: "09:30"
+    close: "16:00"
+    tz: "US/Eastern"
+  kr_market_hours:
+    open: "09:00"
+    close: "15:30"
+    tz: "Asia/Seoul"
+  after_hours_multiplier: 4           # 장마감 후 TTL 배율 (30분→120분)
+  weekend_multiplier: 16              # 주말 TTL 배율 (30분→480분)
+
+# ─── 전문가 의견 후처리 필터 (P1-3) ───
+opinion_filters:
+  enabled: true                       # 필터 활성화
+  trend_confirmation:                 # 하락추세 매수 경고
+    enabled: true
+    downtrend_return_5d_threshold: -5.0   # 5일 -5% 이하 시 하락추세
+    consec_down_days_threshold: 3          # 3일 연속 하락
+  value_trap:                         # 가치함정 경고
+    enabled: true
+    range_52w_threshold: 0.30              # 52주 30% 이하
+    falling_return_threshold: -5.0         # 5일 -5% 이하
+  oversold_bounce:                    # 과매도 반등 검증
+    enabled: true
+    rsi_threshold: 30                      # RSI 30 미만
+    adx_strong_threshold: 25               # ADX 25 초과 시 추세적 과매도
+
+# ─── 전문가 가중 집계 설정 (P1-6) ───
+expert_aggregation:
+  weighted: true                        # 가중 집계 활성화
+  base_weight: 1.0                      # 기본 가중치
+  trend_boost_adx_threshold: 30         # ADX>30 → 추세추종 가중치↑
+  value_boost_adx_threshold: 20         # ADX<20 → 가치분석 가중치↑
+  contrarian_boost_vix_threshold: 25    # VIX>25 → 역발상 가중치↑
+  boost_multiplier: 1.5                 # 부스트 배율 (1.5배)
+
+# ─── 3분할 매수/매도 설정 ───
+split_entry:
+  conservative_atr_mult: 2.0            # 1차 매수: price - ATR×2 (보수적)
+  moderate_atr_mult: 1.0                # 2차 매수: price - ATR×1 (중간)
+  aggressive_atr_mult: 0.0              # 3차 매수: price (적극적)
+  conservative_sell_atr: 1.5            # 1차 매도: price + ATR×1.5 (보수적)
+  moderate_sell_atr: 3.0                # 2차 매도: price + ATR×3 (중간)
+  aggressive_sell_atr: 5.0              # 3차 매도: price + ATR×5 (적극적)

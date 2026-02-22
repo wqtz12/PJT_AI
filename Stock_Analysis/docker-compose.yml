@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stock_analysis_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: stock_analysis
+      POSTGRES_USER: stock_user
+      POSTGRES_PASSWORD: stock_pass_dev_2024
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    volumes:
+      - /Volumes/T7/postgres_data/stock_analysis:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stock_user -d stock_analysis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
+      -c work_mem=64MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=20

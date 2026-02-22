@@ -44,6 +44,14 @@ yarn-error.log*
 .eslintcache
 *.tsbuildinfo
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Stock Analysis output
+output/
+
 # Test coverage
 coverage/
 

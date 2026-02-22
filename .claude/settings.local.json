@@ -21,7 +21,14 @@
       "Bash(git push:*)",
       "Bash(git remote set-url:*)",
       "Bash(git rm:*)",
-      "Bash(git commit --amend -m \"$\\(cat <<''EOF''\nInitial commit: PJT_AI 프로젝트\n\n- AI_Guide_md: AI 가이드 문서\n- CEPF: 메인 프로젝트\n- react-security-test: 보안 스캐너 \\(MCP 서버 포함\\)\n- skil & mcp: Skills 및 MCP 설정\n\nNote: Firebase 서비스 계정 키 파일 제외 \\(보안\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit --amend -m \"$\\(cat <<''EOF''\nInitial commit: PJT_AI 프로젝트\n\n- AI_Guide_md: AI 가이드 문서\n- CEPF: 메인 프로젝트\n- react-security-test: 보안 스캐너 \\(MCP 서버 포함\\)\n- skil & mcp: Skills 및 MCP 설정\n\nNote: Firebase 서비스 계정 키 파일 제외 \\(보안\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(find:*)",
+      "Bash(du:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(python stock_analyzer.py:*)"
     ]
   }
 }
