@@ -1,0 +1,11 @@
+# 보안 설정
+.env
+__pycache__/
+*.pyc
+
+# 데이터 예외 (샘플 제외)
+data/**/*.xlsx
+data/**/*.csv
+
+# 로그 디렉토리
+logs/

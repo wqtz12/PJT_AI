@@ -1,0 +1,9 @@
+{
+  "pm_mapping": {
+    "전병순 책임": "전병순"
+  },
+  "project_group_rules": {
+    "description": "Object코드 + Object상세코드를 그룹핑하여 프로젝트 코드를 매핑한다.",
+    "group_by": ["Object코드"]
+  }
+}

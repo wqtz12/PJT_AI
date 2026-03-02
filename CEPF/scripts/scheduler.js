@@ -23,7 +23,7 @@ async function runScheduledJob() {
   try {
     // Pinecone 인덱스 초기화
     // 인덱스 초기화
-    console.log(`인덱스 '${INDEX_NAME}'를 초기화합니다.`);
+    console.log('인덱스 \'%s\'를 초기화합니다.', INDEX_NAME);
     const index = await initIndex(INDEX_NAME);
 
     // 처리할 파일 목록 읽기
@@ -34,18 +34,18 @@ async function runScheduledJob() {
       return;
     }
 
-    console.log(`총 ${files.length}개의 새 문서를 처리합니다.`);
+    console.log('총 %d개의 새 문서를 처리합니다.', files.length);
 
     // 각 파일을 순회하며 처리
     for (const file of files) {
       const filePath = path.join(DOCS_TO_PROCESS_DIR, file);
-      console.log(`[시작] 파일 처리 중: ${file}`);
+      console.log('[시작] 파일 처리 중: %s', file);
 
       try {
         // 1. 파일 파싱
         const content = await parseFile(filePath);
         if (!content || content.trim() === '') {
-          console.log(`[경고] 내용이 비어있어 파일을 건너뜁니다: ${file}`);
+          console.log('[경고] 내용이 비어있어 파일을 건너뜁니다: %s', file);
           continue;
         }
 
@@ -54,7 +54,7 @@ async function runScheduledJob() {
         // 여기서는 'project'로 기본 설정합니다.
         const experienceType = 'project';
         const newRecord = await addExperience(content, experienceType, file); // 파일명을 키워드로 활용
-        console.log(`  - DB에 저장 완료 (ID: ${newRecord.id})`);
+        console.log('  - DB에 저장 완료 (ID: %s)', newRecord.id);
 
         // 3. 텍스트 임베딩
         const embedding = await embedText(content);
@@ -77,10 +77,10 @@ async function runScheduledJob() {
         // 5. 처리 완료된 파일 이동
         const newFilePath = path.join(PROCESSED_DOCS_DIR, file);
         fs.renameSync(filePath, newFilePath);
-        console.log(`[완료] 파일 이동: ${file} -> ${PROCESSED_DOCS_DIR}`);
+        console.log('[완료] 파일 이동: %s -> %s', file, PROCESSED_DOCS_DIR);
 
       } catch (error) {
-        console.error(`[오류] 파일 처리 중 오류 발생: ${file}`, error);
+        console.error('[오류] 파일 처리 중 오류 발생: %s', file, error);
         // 오류가 발생한 파일은 이동하지 않고 다음 파일 처리를 계속합니다.
       }
     }

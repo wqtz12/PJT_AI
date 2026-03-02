@@ -1,7 +1,7 @@
 {
   "name": "career-experience-and-path-for-the-future",
   "version": "1.0.0",
-  "description": "",
+  "description": "Career Resume Assistant - 경력 기반 이력서/자기소개서 작성 지원 시스템",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

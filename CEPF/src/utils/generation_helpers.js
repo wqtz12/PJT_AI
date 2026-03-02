@@ -5,6 +5,11 @@ const fs = require('fs');
 const pdf = require('pdf-parse');
 const { generate } = require('../lib/rag.js');
 
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
+
 async function inferRoleFromResume() {
   console.log('\nAttempting to infer job role from resume...');
   try {
@@ -63,7 +68,8 @@ async function scrapeCompanyInfo(companyName, role) {
 
     const mission = extractMatches(scrapedText, /(미션|mission|비전|vision)/gi, 2);
     const values = extractMatches(scrapedText, /(핵심가치|core values|인재상)/gi, 5);
-    const skills = extractMatches(scrapedText, new RegExp(`(${searchRole}|직무|job|skills|자격요건)`, "gi"), 5);
+    const sanitizedSearchRole = escapeRegExp(searchRole);
+    const skills = extractMatches(scrapedText, new RegExp(`(${sanitizedSearchRole}|직무|job|skills|자격요건)`, "gi"), 5);
     
     return {
       companyMission: mission,

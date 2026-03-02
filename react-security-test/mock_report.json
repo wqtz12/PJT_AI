@@ -1,0 +1,29 @@
+[
+    {
+        "id": "SQL_INJECTION",
+        "risk": 9,
+        "file": "test/vulnerable_sample.js",
+        "line": 13,
+        "description": "SQL Injection vulnerability detected in query construction.",
+        "code": "const query = \"SELECT * FROM users WHERE id = \" + userId;",
+        "fix_type": "parameterized_query"
+    },
+    {
+        "id": "OS_COMMAND_INJECTION",
+        "risk": 10,
+        "file": "test/vulnerable_sample.js",
+        "line": 17,
+        "description": "OS Command Injection vulnerability detected in exec call.",
+        "code": "require('child_process').exec(\"ping \" + req.query.host, (err, stdout) => {",
+        "fix_type": "sanitize_input"
+    },
+    {
+        "id": "CODE_INJECTION",
+        "risk": 10,
+        "file": "test/vulnerable_sample.js",
+        "line": 25,
+        "description": "Dangerous eval usage detected.",
+        "code": "eval(code);",
+        "fix_type": "remove_eval"
+    }
+]

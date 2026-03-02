@@ -181,7 +181,7 @@ function InjectionTestPanel({ onResult }) {
     setInput(typeof payload === 'string' ? payload : JSON.stringify(payload));
 
     // 시뮬레이션: 실제로는 백엔드에서 테스트해야 함
-    console.log(`[Injection Test] Type: ${queryType}, Payload:`, payload);
+    console.log('[Injection Test] Type: %s, Payload:', queryType, payload);
 
     onResult(prev => [...prev, {
       type: 'Injection',

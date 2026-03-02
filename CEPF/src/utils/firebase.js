@@ -38,10 +38,10 @@ async function addDocument(path, data) {
       ...data,
       createdAt: admin.database.ServerValue.TIMESTAMP, // Realtime Database용 타임스탬프
     });
-    console.log(`'${path}' 경로에 새 데이터가 추가되었습니다 (ID: ${newDocRef.key})`);
+    console.log('\'%s\' 경로에 새 데이터가 추가되었습니다 (ID: %s)', path, newDocRef.key);
     return newDocRef.key;
   } catch (error) {
-    console.error(`Realtime Database 데이터 추가 중 오류 발생 (경로: ${path}):`, error);
+    console.error('Realtime Database 데이터 추가 중 오류 발생 (경로: %s):', path, error);
     throw error;
   }
 }

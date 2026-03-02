@@ -12,20 +12,28 @@ const FIRESTORE_COLLECTION = 'experiences';
  * @param {string} file - 처리할 파일의 이름
  */
 async function processFile(file) {
-  const filePath = path.join(DOCS_DIR, file);
-  console.log(`[시작] 파일 처리 중: ${file}`);
+  const resolvedDocsDir = path.resolve(DOCS_DIR);
+  const requestedPath = path.resolve(DOCS_DIR, file);
+
+  if (!requestedPath.startsWith(resolvedDocsDir)) {
+    console.error(`[오류] 허용되지 않은 파일 경로입니다: ${file}`);
+    return;
+  }
+
+  const filePath = requestedPath;
+  console.log('[시작] 파일 처리 중: %s', file);
 
   try {
     // 파일 존재 여부 확인
     if (!fs.existsSync(filePath)) {
-      console.error(`[오류] '${DOCS_DIR}' 디렉토리에서 파일을 찾을 수 없습니다: ${file}`);
+      console.error('[오류] \'%s\' 디렉토리에서 파일을 찾을 수 없습니다: %s', DOCS_DIR, file);
       return;
     }
 
     // 1. 파일 내용 파싱
     const content = await parseFile(filePath);
     if (!content || content.trim() === '') {
-      console.log(`[경고] 내용이 비어있어 파일을 건너뜁니다: ${file}`);
+      console.log('[경고] 내용이 비어있어 파일을 건너뜁니다: %s', file);
       return;
     }
 
@@ -38,10 +46,10 @@ async function processFile(file) {
 
     // 3. Firestore에 문서 추가
     await addDocument(FIRESTORE_COLLECTION, dataToSave);
-    console.log(`[완료] ${file} -> Firestore 저장 완료`);
+    console.log('[완료] %s -> Firestore 저장 완료', file);
 
   } catch (error) {
-    console.error(`[오류] 파일 처리 중 오류 발생: ${file}`, error);
+    console.error('[오류] 파일 처리 중 오류 발생: %s', file, error);
   }
 }
 
@@ -53,11 +61,11 @@ async function importDocsToFirestore() {
 
   if (targetFile) {
     // 특정 파일이 인자로 주어진 경우, 해당 파일만 처리
-    console.log(`'${DOCS_DIR}' 디렉토리에서 특정 파일 가져오기를 시작합니다: ${targetFile}`);
+    console.log('\'%s\' 디렉토리에서 특정 파일 가져오기를 시작합니다: %s', DOCS_DIR, targetFile);
     await processFile(targetFile);
   } else {
     // 인자가 없는 경우, 기존 로직대로 모든 파일을 처리
-    console.log(`'${DOCS_DIR}' 디렉토리의 모든 파일 가져오기를 시작합니다...`);
+    console.log('\'%s\' 디렉토리의 모든 파일 가져오기를 시작합니다...', DOCS_DIR);
     try {
       const files = fs.readdirSync(DOCS_DIR);
       if (files.length === 0) {
@@ -65,12 +73,12 @@ async function importDocsToFirestore() {
         return;
       }
 
-      console.log(`총 ${files.length}개의 파일을 처리합니다.`);
+      console.log('총 %d개의 파일을 처리합니다.', files.length);
       for (const file of files) {
         await processFile(file); // 개별 파일 처리 함수 호출
       }
     } catch (error) {
-      console.error(`'${DOCS_DIR}' 디렉토리를 읽는 중 오류가 발생했습니다.`, error);
+      console.error('\'%s\' 디렉토리를 읽는 중 오류가 발생했습니다.', DOCS_DIR, error);
     }
   }
 

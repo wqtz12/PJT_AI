@@ -12,6 +12,7 @@
 // 1. XSS (Cross-Site Scripting) 취약점
 // ============================================================
 
+// semgrep-ignore-rule: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
 // ❌ 취약한 코드: dangerouslySetInnerHTML 오용
 function VulnerableXSS({ userInput }) {
   return (
@@ -164,6 +165,7 @@ function secureMerge(target, source) {
 // 5. Open Redirect 취약점
 // ============================================================
 
+// semgrep-ignore-rule: javascript.browser.security.open-redirect.js-open-redirect
 // ❌ 취약한 코드: 검증 없는 리다이렉트
 function VulnerableRedirect() {
   const params = new URLSearchParams(window.location.search);
