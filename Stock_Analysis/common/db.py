@@ -209,6 +209,11 @@ class NewsSentimentRow:
     pass
 
 
+class AnalysisReportRow:
+    """분석 리포트 (analysis_reports 테이블)"""
+    pass
+
+
 def _define_models():
     """
     Peewee 모델 정의 (지연 초기화)
@@ -414,9 +419,26 @@ def _define_models():
         class Meta:
             table_name = "news_sentiment"
 
+    # ─── 8. analysis_reports ───
+    class _AnalysisReportRow(Base):
+        id = pw.BigAutoField(primary_key=True)
+        session_id = pw.ForeignKeyField(_AnalysisSession, column_name="session_id",
+                                         backref="report_rows", on_delete="CASCADE")
+        ticker = pw.CharField(max_length=20)
+        report_type = pw.CharField(max_length=30, default="full")
+        created_at = pw.DateTimeField(default=datetime.now)
+        report_text = pw.TextField()
+        report_length = pw.IntegerField(null=True)
+        file_path = pw.CharField(max_length=500, null=True)
+        metadata = _JSONB(default={})  # JSONB
+
+        class Meta:
+            table_name = "analysis_reports"
+
     # 글로벌 클래스 교체 (모듈 레벨에서 접근 가능하도록)
     global AnalysisSession, StockOHLCV, TechnicalIndicator
     global CompanyInfoRow, ExpertOpinionRow, MacroIndicatorRow, NewsSentimentRow
+    global AnalysisReportRow
 
     AnalysisSession = _AnalysisSession
     StockOHLCV = _StockOHLCV
@@ -425,6 +447,7 @@ def _define_models():
     ExpertOpinionRow = _ExpertOpinionRow
     MacroIndicatorRow = _MacroIndicatorRow
     NewsSentimentRow = _NewsSentimentRow
+    AnalysisReportRow = _AnalysisReportRow
 
     return True
 
@@ -598,7 +621,7 @@ INDICATOR_COL_MAP = {
     "BB_Middle": "bb_middle",
     "BB_Lower": "bb_lower",
     "BB_Width": "bb_width",
-    "BB_%B": "bb_pct",
+    "BB_Pct": "bb_pct",
     # 스토캐스틱
     "Stoch_K": "stoch_k",
     "Stoch_D": "stoch_d",
@@ -612,14 +635,14 @@ INDICATOR_COL_MAP = {
     # 일목균형표
     "Ichimoku_Tenkan": "ichimoku_tenkan",
     "Ichimoku_Kijun": "ichimoku_kijun",
-    "Ichimoku_Senkou_A": "ichimoku_senkou_a",
-    "Ichimoku_Senkou_B": "ichimoku_senkou_b",
+    "Ichimoku_SenkouA": "ichimoku_senkou_a",
+    "Ichimoku_SenkouB": "ichimoku_senkou_b",
     "Ichimoku_Chikou": "ichimoku_chikou",
-    "Ichimoku_Cloud_Top": "ichimoku_cloud_top",
-    "Ichimoku_Cloud_Bottom": "ichimoku_cloud_bottom",
+    "Ichimoku_CloudTop": "ichimoku_cloud_top",
+    "Ichimoku_CloudBottom": "ichimoku_cloud_bottom",
     "Ichimoku_Tenkan_Angle": "ichimoku_tenkan_angle",
     "Ichimoku_Kijun_Angle": "ichimoku_kijun_angle",
-    "Ichimoku_Senkou_A_Angle": "ichimoku_senkou_a_angle",
+    "Ichimoku_SenkouA_Angle": "ichimoku_senkou_a_angle",
 }
 
 # 역매핑 (DB → DataFrame)
@@ -1382,6 +1405,303 @@ def load_expert_opinions(session_id: str):
 
     except Exception as e:
         logger.error(f"전문가의견 로드 실패: {e}")
+        return None
+    finally:
+        if not db.is_closed():
+            db.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# 증분(Incremental) 데이터 조회 헬퍼
+# ═══════════════════════════════════════════════════════════════
+
+def get_latest_ohlcv_date(ticker: str, interval: str = "1d"):
+    """
+    DB에 저장된 해당 종목의 가장 최근 OHLCV 날짜 조회
+
+    Args:
+        ticker: 종목 코드
+        interval: 데이터 간격
+
+    Returns:
+        datetime.date 또는 None (데이터 없을 시)
+    """
+    if not ensure_models():
+        return None
+
+    db = get_db()
+    try:
+        db.connect(reuse_if_open=True)
+        row = (StockOHLCV
+               .select(_pw.fn.MAX(StockOHLCV.trade_date).alias("max_date"))
+               .where(
+                   (StockOHLCV.ticker == ticker) &
+                   (StockOHLCV.interval == interval)
+               )
+               .dicts()
+               .first())
+        if row and row.get("max_date"):
+            return row["max_date"]
+        return None
+    except Exception as e:
+        logger.error(f"최신 OHLCV 날짜 조회 실패: {e}")
+        return None
+    finally:
+        if not db.is_closed():
+            db.close()
+
+
+def load_ohlcv_all(ticker: str, interval: str = "1d", since_days: int = 0):
+    """
+    DB에서 해당 종목의 OHLCV 데이터를 DataFrame으로 로드
+    (세션 무관, ticker+interval 기준 최신 데이터)
+
+    ON CONFLICT UPDATE로 저장되므로 ticker+interval+trade_date가
+    UNIQUE이며, 항상 최신 session의 데이터가 유지됨.
+
+    Args:
+        ticker: 종목 코드
+        interval: 데이터 간격
+        since_days: 최근 N일만 로드 (0=전체, 기본: 0)
+
+    Returns:
+        pandas.DataFrame 또는 None
+    """
+    if not ensure_models():
+        return None
+
+    import pandas as pd
+
+    db = get_db()
+    try:
+        db.connect(reuse_if_open=True)
+        conditions = (
+            (StockOHLCV.ticker == ticker) &
+            (StockOHLCV.interval == interval)
+        )
+        # since_days가 지정되면 최근 N일 데이터만 로드 (데이터 누적 방지)
+        if since_days > 0:
+            from datetime import date, timedelta
+            cutoff_date = date.today() - timedelta(days=since_days)
+            conditions = conditions & (StockOHLCV.trade_date >= cutoff_date)
+
+        query = (StockOHLCV
+                 .select()
+                 .where(conditions)
+                 .order_by(StockOHLCV.trade_date))
+
+        rows = list(query.dicts())
+        if not rows:
+            return None
+
+        df = pd.DataFrame(rows)
+        df["Date"] = pd.to_datetime(df["trade_date"])
+        df = df.set_index("Date").sort_index()
+
+        # DB 컬럼명 → DataFrame 컬럼명 역매핑
+        rename_map = {v: k for k, v in OHLCV_COL_MAP.items() if v in df.columns}
+        df = df.rename(columns=rename_map)
+
+        # 불필요 컬럼 제거
+        drop_cols = ["id", "session_id", "ticker", "interval", "trade_date"]
+        df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
+
+        return df
+
+    except Exception as e:
+        logger.error(f"전체 OHLCV 로드 실패: {e}")
+        return None
+    finally:
+        if not db.is_closed():
+            db.close()
+
+
+def get_latest_analysis_session(ticker: str, interval: str = "1d"):
+    """
+    해당 종목의 최신 full_analysis 세션 조회
+
+    Args:
+        ticker: 종목 코드
+        interval: 데이터 간격
+
+    Returns:
+        dict: {id, ticker, interval, created_at, parent_id, ...} 또는 None
+    """
+    if not ensure_models():
+        return None
+
+    db = get_db()
+    try:
+        db.connect(reuse_if_open=True)
+        session = (AnalysisSession
+                   .select()
+                   .where(
+                       (AnalysisSession.ticker == ticker) &
+                       (AnalysisSession.interval == interval) &
+                       (AnalysisSession.session_type == "full_analysis") &
+                       (AnalysisSession.status == "active")
+                   )
+                   .order_by(AnalysisSession.created_at.desc())
+                   .first())
+        if session is None:
+            return None
+        return {
+            "id": session.id,
+            "ticker": session.ticker,
+            "interval": session.interval,
+            "parent_id": session.parent_id_id if session.parent_id else None,
+            "created_at": session.created_at,
+            "metadata": session.metadata if isinstance(session.metadata, dict) else {},
+        }
+    except Exception as e:
+        logger.error(f"최신 분석 세션 조회 실패: {e}")
+        return None
+    finally:
+        if not db.is_closed():
+            db.close()
+
+
+def get_latest_company_info_date(ticker: str):
+    """
+    해당 종목의 최신 company_info 세션 생성 시각 조회
+
+    Args:
+        ticker: 종목 코드
+
+    Returns:
+        datetime 또는 None
+    """
+    if not ensure_models():
+        return None
+
+    db = get_db()
+    try:
+        db.connect(reuse_if_open=True)
+        session = (AnalysisSession
+                   .select()
+                   .where(
+                       (AnalysisSession.ticker == ticker) &
+                       (AnalysisSession.session_type == "company_info") &
+                       (AnalysisSession.status == "active")
+                   )
+                   .order_by(AnalysisSession.created_at.desc())
+                   .first())
+        if session is None:
+            return None
+        return session.created_at
+    except Exception as e:
+        logger.error(f"최신 기업정보 날짜 조회 실패: {e}")
+        return None
+    finally:
+        if not db.is_closed():
+            db.close()
+
+
+# ─── analysis_reports ───
+
+def store_report(report_text: str, ticker: str, session_id: str,
+                 report_type: str = "full", file_path: str = None,
+                 metadata: dict = None) -> int:
+    """
+    분석 리포트를 DB에 저장
+
+    Args:
+        report_text: 리포트 전체 텍스트
+        ticker: 종목 코드
+        session_id: 세션 UUID
+        report_type: 리포트 유형 (full, quick, technical)
+        file_path: 파일 저장 경로 (선택)
+        metadata: 추가 메타데이터 (선택)
+
+    Returns:
+        int: 저장된 행 수 (0 또는 1)
+    """
+    if not ensure_models():
+        return 0
+
+    db = get_db()
+    try:
+        db.connect(reuse_if_open=True)
+        with db.atomic():
+            AnalysisReportRow.create(
+                session_id=session_id,
+                ticker=ticker,
+                report_type=report_type,
+                report_text=report_text,
+                report_length=len(report_text),
+                file_path=file_path,
+                metadata=metadata or {},
+            )
+        logger.info(f"리포트 저장: {ticker} [{report_type}] {len(report_text)}자")
+        return 1
+    except Exception as e:
+        logger.error(f"리포트 저장 실패: {e}")
+        return 0
+    finally:
+        if not db.is_closed():
+            db.close()
+
+
+def load_report(session_id: str = None, ticker: str = None,
+                report_type: str = "full"):
+    """
+    DB에서 리포트 로드
+
+    Args:
+        session_id: 세션 UUID (우선)
+        ticker: 종목 코드 (session_id 없을 시 최신 조회)
+        report_type: 리포트 유형
+
+    Returns:
+        dict: {report_text, report_type, file_path, created_at, metadata} 또는 None
+    """
+    if not ensure_models():
+        return None
+
+    db = get_db()
+    try:
+        db.connect(reuse_if_open=True)
+
+        if session_id:
+            row = (AnalysisReportRow
+                   .select()
+                   .where(AnalysisReportRow.session_id == session_id)
+                   .order_by(AnalysisReportRow.created_at.desc())
+                   .first())
+        elif ticker:
+            latest_session = (
+                AnalysisSession.select()
+                .where(
+                    (AnalysisSession.ticker == ticker) &
+                    (AnalysisSession.session_type == "report") &
+                    (AnalysisSession.status == "active")
+                )
+                .order_by(AnalysisSession.created_at.desc())
+                .first()
+            )
+            if latest_session is None:
+                return None
+            row = (AnalysisReportRow
+                   .select()
+                   .where(AnalysisReportRow.session_id == latest_session.id)
+                   .first())
+        else:
+            return None
+
+        if row is None:
+            return None
+
+        return {
+            "report_text": row.report_text,
+            "report_type": row.report_type,
+            "report_length": row.report_length,
+            "file_path": row.file_path,
+            "created_at": str(row.created_at),
+            "metadata": row.metadata if isinstance(row.metadata, dict) else {},
+        }
+
+    except Exception as e:
+        logger.error(f"리포트 로드 실패: {e}")
         return None
     finally:
         if not db.is_closed():

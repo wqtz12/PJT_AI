@@ -204,6 +204,20 @@ async def analyze_all_experts(analysis_json: str, company_info_json: str, macro_
                     _ticker = parsed_analysis.get("ticker", "UNKNOWN")
                     _analysis_id = (parsed_analysis.get("analysis_id")
                                     or parsed_analysis.get("data_id"))
+
+                # DB 모드에서 ticker가 없으면 세션에서 조회
+                if _ticker == "UNKNOWN" and _analysis_id:
+                    try:
+                        sess = get_session(_analysis_id)
+                        if sess and sess.get("ticker"):
+                            _ticker = sess["ticker"]
+                    except Exception:
+                        pass
+
+                # 여전히 UNKNOWN이면 로그 경고 (회사명은 ticker가 아니므로 사용하지 않음)
+                if _ticker == "UNKNOWN":
+                    logger.warning(f"expert DB 저장: ticker 추출 실패 (analysis_id={_analysis_id})")
+
                 sid = create_session(
                     session_type="expert", ticker=_ticker,
                     metadata={"expert_count": len(opinions),

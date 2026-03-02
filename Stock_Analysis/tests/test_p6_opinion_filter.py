@@ -56,7 +56,7 @@ def _make_df(
         "Low": [c * 0.98 for c in closes],
         "Close": closes,
         "Volume": [1000000] * rows,
-        "RSI_14": [rsi] * rows,
+        "RSI": [rsi] * rows,
         "ADX": [adx] * rows,
         "SMA_20": [close * (0.95 if not sma20_above else 1.05)] * rows,
     }
@@ -238,7 +238,7 @@ class TestCheckOversoldTrend:
     def test_rsi_data_missing(self):
         """RSI 데이터 없으면 → 추세적 과매도 아님"""
         df = _make_df(rows=30)
-        df = df.drop(columns=["RSI_14"], errors="ignore")
+        df = df.drop(columns=["RSI"], errors="ignore")
         result = _check_oversold_trend(df, _DEFAULT_OVERSOLD_CFG)
         assert result["is_trend_oversold"] is False
         assert result["rsi"] is None

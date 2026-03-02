@@ -24,12 +24,136 @@ def format_number(num):
         return f"${num:.2f}" if isinstance(num, float) else str(num)
 
 
+def _safe_dividend_yield(val) -> str:
+    """배당수익률을 안전하게 포맷 (yfinance 값 범위 보정)"""
+    if val is None or val == 0:
+        return "0.00%"
+    v = float(val)
+    # yfinance가 이미 퍼센트로 반환하는 경우 (0.27 = 0.27% 의미)
+    # 실제 20% 이상 배당수익률은 극히 드묾
+    if v > 0.20:
+        return f"{v:.2f}%"
+    # 일반적 비율 (0.0027 → 0.27%)
+    return f"{v:.2%}"
+
+
+def _format_split_prices(prices: list) -> str:
+    """3분할 가격 리스트를 슬래시 구분 문자열로 변환"""
+    if not prices:
+        return "—"
+    return " / ".join(str(p) for p in prices)
+
+
+def _build_expert_section(experts_data: dict) -> str:
+    """전문가 분석 결과를 텍스트 표로 구성"""
+    experts = experts_data.get("experts", [])
+    aggregated = experts_data.get("aggregated", {})
+    filters = experts_data.get("filters_applied", [])
+
+    section = """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  8. 5전문가 종합 분석
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+    # 8-1. 전문가별 상세 분석
+    for i, exp in enumerate(experts, 1):
+        name = exp.get("전문가", f"전문가 {i}")
+        position = exp.get("포지션", "—")
+        confidence = exp.get("확신도", "—")
+        buy_price = exp.get("매수가", "—")
+        sell_price = exp.get("매도가", "—")
+        stop_loss = exp.get("손절가", "—")
+        rationale = exp.get("근거", "")
+        rr = exp.get("리스크_리워드", "")
+
+        pos_icon = {"매수": "🟢", "매도": "🔴", "홀드": "🟡"}.get(position, "⚪")
+
+        section += f"""
+  ┌─ [{i}] {name} ─────────────────────────────
+  │  포지션: {pos_icon} {position}  |  확신도: {confidence}
+  │  매수가: {buy_price}  |  매도가: {sell_price}  |  손절가: {stop_loss}
+  │  근거: {rationale}
+"""
+        if rr:
+            section += f"  │  리스크/리워드: {rr}\n"
+        section += "  └──────────────────────────────────────────────\n"
+
+    # 8-2. 3분할 매수/매도 가격표 (포지션 무관, 항상 표시)
+    section += """
+  ┌─ 3분할 매수/매도 가격표 (일목균형표 기반) ────────────
+  │
+  │  포지션과 무관하게 모든 전문가의 분할 진입/청산 가격입니다.
+  │  1차(보수적) → 2차(중간) → 3차(적극적) 순서
+  │
+"""
+    # 테이블 헤더
+    section += "  │  {:<14s} {:^6s} {:^6s} {:^22s} {:^22s}\n".format(
+        "전문가", "포지션", "확신도", "3분할 매수", "3분할 매도"
+    )
+    section += "  │  {}\n".format("─" * 74)
+
+    for exp in experts:
+        name = exp.get("전문가", "—")
+        # 이름을 짧게 축약
+        short_name = name.replace(" 전문가", "").replace(" 트레이더", "")
+        position = exp.get("포지션", "—")
+        confidence = exp.get("확신도", "—")
+        split_buy = _format_split_prices(exp.get("3분할_매수"))
+        split_sell = _format_split_prices(exp.get("3분할_매도"))
+
+        section += "  │  {:<14s} {:^6s} {:>6s} {:^22s} {:^22s}\n".format(
+            short_name, position, confidence, split_buy, split_sell
+        )
+
+    section += "  │\n  └──────────────────────────────────────────────\n"
+
+    # 8-3. 가중 집계 결과
+    dominant = aggregated.get("dominant", "—")
+    w_buy = aggregated.get("weighted_buy", 0)
+    w_sell = aggregated.get("weighted_sell", 0)
+    w_hold = aggregated.get("weighted_hold", 0)
+    total_w = aggregated.get("total_weight", 0)
+    cycle = aggregated.get("market_cycle", {})
+    conflicts = aggregated.get("opinion_conflicts", [])
+
+    dom_icon = {"매수": "🟢", "매도": "🔴", "홀드": "🟡"}.get(dominant, "⚪")
+
+    section += f"""
+  ┌─────────────────────────────────────────────┐
+  │  >>> 전문가 종합 판정: {dom_icon} {dominant:6s}               │
+  │      매수 {w_buy:.1f} / 홀드 {w_hold:.1f} / 매도 {w_sell:.1f}  (총 {total_w:.1f})  │
+  └─────────────────────────────────────────────┘
+"""
+
+    if cycle:
+        phase = cycle.get("phase", "—")
+        score = cycle.get("score", 0)
+        reasons = cycle.get("reasons", [])
+        section += f"  시장 사이클: {phase} (점수: {score})\n"
+        for r in reasons:
+            section += f"    - {r}\n"
+
+    if conflicts:
+        section += "\n  전문가 충돌 패턴:\n"
+        for c in conflicts:
+            section += f"    ⚡ {c}\n"
+
+    if filters:
+        section += "\n  의견 필터 적용:\n"
+        for f in filters:
+            section += f"    🔄 {f}\n"
+
+    return section
+
+
 def generate_report(
     ticker: str,
     company_info: dict,
     df: pd.DataFrame,
     signals: dict,
     chart_paths: list,
+    experts_data: dict = None,
 ) -> str:
     """종합 분석 리포트 생성"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -72,7 +196,7 @@ def generate_report(
   섹터      : {company_info.get('섹터', 'N/A')}
   산업      : {company_info.get('산업', 'N/A')}
   시가총액  : {format_number(company_info.get('시가총액', 0))}
-  직원수    : {company_info.get('직원수', 'N/A')}명
+  직원수    : {f"{int(company_info['직원수']):,}명" if company_info.get('직원수') else 'N/A'}
   홈페이지  : {company_info.get('홈페이지', 'N/A')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -103,7 +227,7 @@ def generate_report(
   PER       : {company_info.get('PER', 'N/A')}
   PBR       : {company_info.get('PBR', 'N/A')}
   EPS       : {company_info.get('EPS', 'N/A')}
-  배당수익률: {company_info.get('배당수익률', 0) or 0:.2%}
+  배당수익률: {_safe_dividend_yield(company_info.get('배당수익률', 0))}
   베타      : {company_info.get('베타', 'N/A')}
   총매출    : {format_number(company_info.get('총매출', 0))}
   영업이익  : {format_number(company_info.get('영업이익', 0))}
@@ -135,8 +259,8 @@ def generate_report(
 
   20일 변동성 (연율화): {volatility_20d:.1f}%
   60일 변동성 (연율화): {volatility_60d:.1f}%
-  ATR (14일)          : ${latest.get('ATR', 0):.4f}
-  ADX (추세강도)       : {latest.get('ADX', 0):.1f}
+  ATR (14일)          : ${latest.get('ATR') or 0:.4f}
+  ADX (추세강도)       : {latest.get('ADX') or 0:.1f}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   7. 애널리스트 전망
@@ -151,14 +275,19 @@ def generate_report(
         upside = ((float(target) - price) / price) * 100
         report += f"  상승 여력  : {'+' if upside >= 0 else ''}{upside:.1f}%\n"
 
-    report += f"""
+    # 8. 전문가 종합 분석 (experts_data가 있을 때만)
+    if experts_data and experts_data.get("experts"):
+        report += _build_expert_section(experts_data)
+
+    # 9. 생성된 차트 파일 (차트가 있을 때만)
+    if chart_paths:
+        report += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  8. 생성된 차트 파일
+  9. 생성된 차트 파일
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-
-    for i, path in enumerate(chart_paths, 1):
-        report += f"  [{i}] {path}\n"
+        for i, path in enumerate(chart_paths, 1):
+            report += f"  [{i}] {path}\n"
 
     report += f"""
 {'='*70}

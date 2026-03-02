@@ -188,7 +188,7 @@ def _check_oversold_trend(df: pd.DataFrame, cfg: dict) -> dict:
     latest = df.iloc[-1]
 
     # RSI
-    rsi = _safe_get(latest, "RSI_14")
+    rsi = _safe_get(latest, "RSI")
     result["rsi"] = float(rsi) if rsi is not None else None
 
     # ADX
@@ -196,8 +196,8 @@ def _check_oversold_trend(df: pd.DataFrame, cfg: dict) -> dict:
     result["adx"] = float(adx) if adx is not None else None
 
     # RSI 상승 추세 (최근 3일)
-    if len(df) >= 3 and "RSI_14" in df.columns:
-        rsi_vals = df["RSI_14"].iloc[-3:].dropna()
+    if len(df) >= 3 and "RSI" in df.columns:
+        rsi_vals = df["RSI"].iloc[-3:].dropna()
         if len(rsi_vals) >= 2:
             result["rsi_rising"] = bool(rsi_vals.iloc[-1] > rsi_vals.iloc[0])
 

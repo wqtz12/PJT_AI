@@ -32,7 +32,7 @@ from visualizer import (
     plot_performance_summary,
 )
 from report_generator import generate_report as _generate_simple_report
-from common.db import is_db_available, get_session, load_indicators
+from common.db import is_db_available, get_session, load_indicators, create_session, store_report
 
 logger = logging.getLogger(__name__)
 
@@ -201,16 +201,19 @@ async def generate_text_report(
     analysis_json: str,
     signals_json: str,
     chart_paths_json: str = "[]",
+    expert_json: str = "",
 ) -> str:
     """
     텍스트 종합 분석 리포트를 생성하고 파일로 저장합니다.
+    expert_json을 전달하면 전문가 분석 결과 + 3분할 매수/매도 표가 포함됩니다.
 
     Args:
         ticker: 종목 코드
         company_info_json: fetch_company_info의 반환값
         analysis_json: run_full_analysis의 반환값
         signals_json: generate_signals의 반환값
-        chart_paths_json: 차트 파일 경로 배열 (JSON)
+        chart_paths_json: 차트 파일 경로 배열 (JSON, 선택)
+        expert_json: analyze_all_experts의 반환값 (선택, 전문가 분석 + 3분할 가격표 포함)
 
     Returns:
         JSON: {report_path, report_preview (처음 500자)}
@@ -230,12 +233,21 @@ async def generate_text_report(
 
         chart_paths = json.loads(chart_paths_json)
 
+        # expert_json 파싱
+        experts_data = None
+        if expert_json:
+            try:
+                experts_data = json.loads(expert_json)
+            except Exception:
+                pass
+
         report = _generate_simple_report(
             ticker=ticker,
             company_info=company_info,
             df=df,
             signals=signals,
             chart_paths=chart_paths,
+            experts_data=experts_data,
         )
 
         # 파일 저장
@@ -243,10 +255,34 @@ async def generate_text_report(
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(report)
 
+        # DB 저장
+        db_saved = False
+        if is_db_available():
+            try:
+                session_id = create_session("report", ticker, metadata={
+                    "report_type": "full",
+                    "has_experts": bool(experts_data),
+                })
+                if session_id:
+                    db_saved = store_report(
+                        report_text=report,
+                        ticker=ticker,
+                        session_id=session_id,
+                        report_type="full",
+                        file_path=report_path,
+                        metadata={
+                            "has_experts": bool(experts_data),
+                            "chart_count": len(chart_paths),
+                        },
+                    ) > 0
+            except Exception as e:
+                logger.warning(f"리포트 DB 저장 실패 (파일은 정상): {e}")
+
         return json.dumps({
             "report_path": report_path,
             "report_preview": report[:500] + "..." if len(report) > 500 else report,
             "total_length": len(report),
+            "db_saved": db_saved,
         }, ensure_ascii=False, indent=2)
 
     except Exception as e:

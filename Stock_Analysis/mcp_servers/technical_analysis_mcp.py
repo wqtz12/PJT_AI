@@ -47,11 +47,139 @@ from common.db import (
     load_ohlcv,
     store_indicators,
     load_indicators,
+    get_latest_analysis_session,
 )
+
+from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("TechnicalAnalysis")
+
+
+def _compute_ohlcv_checksum(df, n: int = 10) -> float:
+    """
+    OHLCV DataFrame의 최근 N일 Close 합계 체크섬.
+    주식분할/데이터 소급조정 감지용.
+    """
+    if df is None or df.empty:
+        return 0.0
+    try:
+        closes = df["Close"].tail(n).dropna()
+        return round(float(closes.sum()), 4)
+    except Exception:
+        return 0.0
+
+
+def _try_cached_analysis(data_id: str, ticker: str, interval: str, ohlcv_rows: int = 0):
+    """
+    DB에서 기존 분석 결과 재사용 시도
+
+    전략:
+    - data_id(OHLCV 세션)가 증분 수집(cache_hit)으로 만들어진 경우,
+      기존 full_analysis 결과가 아직 유효할 수 있음
+    - 해당 종목의 최신 full_analysis를 찾아 데이터가 동일한지 확인
+    - 날짜 비교 + 체크섬(Close 합계) 비교 → 주식분할 감지
+    - 행 수 비교 → period 불일치 감지
+    - 동일하면 기존 analysis_id 재사용
+
+    Returns:
+        dict (결과 JSON) 또는 None (재사용 불가)
+    """
+    if not is_db_available() or not data_id:
+        return None
+
+    try:
+        # data_id 세션의 메타데이터 확인
+        data_session = get_session(data_id)
+        if not data_session:
+            return None
+
+        # 해당 종목의 최신 full_analysis 세션 조회
+        latest_analysis = get_latest_analysis_session(ticker, interval)
+        if not latest_analysis:
+            return None
+
+        analysis_id = latest_analysis["id"]
+        created_at = latest_analysis["created_at"]
+
+        # 분석이 오늘 생성된 것인지 확인
+        if hasattr(created_at, 'date'):
+            analysis_date = created_at.date()
+        else:
+            analysis_date = created_at
+        if analysis_date != date.today():
+            return None  # 어제 이전 분석은 재사용하지 않음
+
+        # 기존 분석 데이터 로드 확인
+        existing_df = load_indicators(session_id=analysis_id)
+        if existing_df is None or existing_df.empty:
+            return None
+
+        # 새 OHLCV 데이터 로드
+        new_ohlcv = load_ohlcv(session_id=data_id)
+        if new_ohlcv is None or new_ohlcv.empty:
+            return None
+
+        # ── 검증 1: 날짜 범위 비교 ──
+        analysis_last_date = existing_df.index[-1].date() if hasattr(existing_df.index[-1], 'date') else existing_df.index[-1]
+        ohlcv_last_date = new_ohlcv.index[-1].date() if hasattr(new_ohlcv.index[-1], 'date') else new_ohlcv.index[-1]
+
+        if analysis_last_date < ohlcv_last_date:
+            return None  # 새 데이터가 있어 재계산 필요
+
+        # ── 검증 2: 행 수 비교 (period 불일치 감지) ──
+        # 기존 분석 행 수와 새 OHLCV 행 수 차이가 20% 이상이면 period 변경으로 간주
+        if ohlcv_rows > 0 and abs(len(existing_df) - ohlcv_rows) / max(ohlcv_rows, 1) > 0.2:
+            logger.info(
+                f"[{ticker}] 분석 캐시 무효: 행 수 불일치 "
+                f"(기존={len(existing_df)}, 새 OHLCV={ohlcv_rows})"
+            )
+            return None
+
+        # ── 검증 3: 체크섬 비교 (주식분할/데이터 소급조정 감지) ──
+        existing_checksum = _compute_ohlcv_checksum(existing_df, n=10)
+        new_checksum = _compute_ohlcv_checksum(new_ohlcv, n=10)
+        if existing_checksum > 0 and new_checksum > 0:
+            diff_pct = abs(existing_checksum - new_checksum) / existing_checksum * 100
+            if diff_pct > 1.0:  # 1% 이상 차이 → 분할/조정 발생
+                logger.info(
+                    f"[{ticker}] 분석 캐시 무효: 체크섬 불일치 "
+                    f"(기존={existing_checksum}, 새={new_checksum}, 차이={diff_pct:.2f}%)"
+                )
+                return None
+
+        # ── 모든 검증 통과 → 캐시 재사용! ──
+        base_cols = {"Open", "High", "Low", "Close", "Volume", "Dividends", "Stock Splits"}
+        indicator_cols = [c for c in existing_df.columns if c not in base_cols]
+
+        latest = existing_df.iloc[-1]
+        summary = {}
+        for col in indicator_cols:
+            val = latest.get(col)
+            if val is not None and not (isinstance(val, float) and (np.isnan(val) or np.isinf(val))):
+                summary[col] = round(float(val), 4) if isinstance(val, (int, float, np.floating)) else val
+
+        logger.info(
+            f"[{ticker}] 기술분석 DB 캐시 히트: analysis_id={analysis_id[:8]}... "
+            f"({len(existing_df)}행, 최신={analysis_last_date})"
+        )
+
+        result = {
+            "analysis_id": analysis_id,
+            "data_id": data_id,
+            "ticker": ticker,
+            "interval": interval,
+            "rows": len(existing_df),
+            "cached": True,
+            "indicator_columns": indicator_cols,
+            "latest_indicators": summary,
+        }
+        return result
+
+    except Exception as e:
+        logger.debug(f"[{ticker}] 분석 캐시 확인 실패: {e}")
+        return None
 
 
 def _json_to_df(ohlcv_json: str) -> pd.DataFrame:
@@ -183,6 +311,12 @@ async def run_full_analysis(ohlcv_json: str = "", data_id: str = "") -> str:
     """
     try:
         df, ticker, interval, resolved_data_id = _resolve_dataframe(ohlcv_json, data_id)
+
+        # ── 캐시 확인: 기존 분석 결과 재사용 가능한지 검사 (토큰 절약) ──
+        cached = _try_cached_analysis(resolved_data_id, ticker, interval, ohlcv_rows=len(df))
+        if cached is not None:
+            return json.dumps(cached, ensure_ascii=False, indent=2, default=str)
+
         df = _run_full_analysis(df)
 
         # 추가된 지표 컬럼 추출

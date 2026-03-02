@@ -200,6 +200,22 @@ CREATE TABLE IF NOT EXISTS news_sentiment (
 CREATE INDEX IF NOT EXISTS idx_news_session ON news_sentiment(session_id);
 CREATE INDEX IF NOT EXISTS idx_news_ticker ON news_sentiment(ticker, fetched_at DESC);
 
+-- 8. 분석 리포트
+CREATE TABLE IF NOT EXISTS analysis_reports (
+    id              BIGSERIAL PRIMARY KEY,
+    session_id      VARCHAR(36) NOT NULL REFERENCES analysis_sessions(id) ON DELETE CASCADE,
+    ticker          VARCHAR(20) NOT NULL,
+    report_type     VARCHAR(30) NOT NULL DEFAULT 'full',   -- 'full', 'quick', 'technical'
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    report_text     TEXT NOT NULL,
+    report_length   INTEGER,
+    file_path       VARCHAR(500),
+    metadata        JSONB DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_session ON analysis_reports(session_id);
+CREATE INDEX IF NOT EXISTS idx_report_ticker ON analysis_reports(ticker, created_at DESC);
+
 -- ═══════════════════════════════════════════════════════════════
 -- 뷰: 최신 분석 세션 (종목별)
 -- ═══════════════════════════════════════════════════════════════

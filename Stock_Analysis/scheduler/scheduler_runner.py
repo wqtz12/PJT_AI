@@ -18,10 +18,11 @@ import yaml
 from datetime import datetime
 from typing import Optional
 
-# 프로젝트 루트를 PYTHONPATH에 추가
+# 프로젝트 루트를 PYTHONPATH에 추가 + cwd 변경
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
+os.chdir(_PROJECT_ROOT)  # 기존 모듈들이 cwd 기반 상대경로 사용
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger

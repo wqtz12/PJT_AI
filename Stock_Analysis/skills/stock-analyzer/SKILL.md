@@ -29,8 +29,10 @@ Step 4: [expert-analysis] 선택
   run_backtest(analysis_json)
   compute_var(analysis_json)
 
-Step 5: [stock-report]
-  generate_all_charts(analysis_json, ticker)
+Step 5: [stock-report] 텍스트 리포트 (기본)
+  generate_text_report(ticker, company_info_json, analysis_json, signals_json,
+    expert_json=analyze_all_experts_결과)
+  # 차트는 사용자 요청 시에만: generate_all_charts(analysis_json, ticker)
 ```
 
 ## 부분 분석
