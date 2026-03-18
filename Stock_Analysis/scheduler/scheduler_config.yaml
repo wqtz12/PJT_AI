@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════
+# Stock Analysis Scheduler 설정
+# ═══════════════════════════════════════════════════════════════
+# 비밀정보는 "env:VARIABLE_NAME" 문법으로 환경변수에서 로드됩니다.
+
+# ─── 스케줄러 기본 설정 ───
+scheduler:
+  daemon_mode: true                    # 장시간 데몬 실행 (false → 1회 실행 후 종료)
+  max_concurrent_tickers: 3            # 동시 분석 워커 수
+  api_rate_limit_delay: 2.0            # 종목 간 API 호출 딜레이 (초)
+  timezone: "Asia/Seoul"               # 스케줄 기준 시간대
+  log_level: "INFO"                    # 스케줄러 로그 레벨
+
+  web_ui:
+    enabled: true                      # 웹 UI 활성화
+    host: "127.0.0.1"                  # 바인딩 주소 (로컬 전용)
+    port: 8500                         # 웹 UI 포트
+
+# ─── 워치리스트 설정 ───
+# 각 워치리스트는 독립적인 스케줄과 알림 채널을 가집니다.
+watchlists:
+  bigtech:
+    tickers: [AAPL, MSFT, GOOGL, AMZN, NVDA, META]
+    schedule: "09:00"                  # KST 기준 실행 시간
+    analysis_type: full                # full (종합분석) 또는 quick (빠른진단)
+    notifications: [file, telegram]    # 사용할 알림 채널
+    enabled: true
+
+  korean:
+    tickers: ["005930.KS", "000660.KS"]
+    schedule: "16:00"
+    analysis_type: full
+    notifications: [file, slack]
+    enabled: true
+
+# ─── 알림 채널 설정 ───
+notifications:
+  file:
+    output_dir: "output/scheduled"     # 스케줄 분석 결과 저장 디렉토리
+
+  telegram:
+    bot_token: "env:TELEGRAM_BOT_TOKEN"
+    chat_id: "env:TELEGRAM_CHAT_ID"
+    send_charts: true                  # 차트 이미지 첨부
+    max_chart_count: 3                 # 워치리스트당 최대 차트 수
+
+  email:
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    use_tls: true
+    sender: "env:EMAIL_SENDER"
+    password: "env:EMAIL_PASSWORD"
+    recipients: []                     # 수신자 이메일 목록
+    send_charts: true
+
+  slack:
+    webhook_url: "env:SLACK_WEBHOOK_URL"
+    channel: "#stock-alerts"
+    send_charts: false                 # 웹훅은 파일 업로드 미지원
+
+# ─── 이력 관리 ───
+history:
+  retention_days: 90                   # 이력 보관 기간 (일)
+  db_path: "scheduler/scheduler_history.db"  # SQLite DB 경로

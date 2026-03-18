@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Watchlists - Stock Analysis Scheduler{% endblock %}
+
+{% block content %}
+<h1>Watchlists</h1>
+
+<!-- 새 워치리스트 추가 폼 -->
+<div class="form-card">
+  <h3>Add New Watchlist</h3>
+  <form id="add-watchlist-form" onsubmit="return addWatchlist(event)">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" required placeholder="e.g., bigtech">
+      </div>
+      <div class="form-group">
+        <label>Tickers (comma-separated)</label>
+        <input type="text" name="tickers" required placeholder="e.g., AAPL, MSFT, GOOGL">
+      </div>
+      <div class="form-group">
+        <label>Schedule (KST)</label>
+        <input type="time" name="schedule" value="09:00">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select name="analysis_type">
+          <option value="full">Full Analysis</option>
+          <option value="quick">Quick Scan</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notifications</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="notifications" value="file" checked> File</label>
+          <label><input type="checkbox" name="notifications" value="telegram"> Telegram</label>
+          <label><input type="checkbox" name="notifications" value="email"> Email</label>
+          <label><input type="checkbox" name="notifications" value="slack"> Slack</label>
+        </div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Watchlist</button>
+  </form>
+</div>
+
+<div id="form-message"></div>
+
+<!-- 기존 워치리스트 목록 -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Tickers</th>
+        <th>Schedule</th>
+        <th>Type</th>
+        <th>Notifications</th>
+        <th>Enabled</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="watchlist-table-body">
+      {% for name, wl in watchlists.items() %}
+      <tr id="row-{{ name }}">
+        <td><strong>{{ name }}</strong></td>
+        <td>
+          <div class="ticker-tags">
+            {% for t in wl.tickers %}
+            <span class="ticker-tag">{{ t }}</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td>{{ wl.schedule }} KST</td>
+        <td>{{ wl.analysis_type or 'full' }}</td>
+        <td>{{ wl.notifications | join(', ') }}</td>
+        <td>
+          <span class="badge {% if wl.enabled %}badge-active{% else %}badge-inactive{% endif %}">
+            {% if wl.enabled %}ON{% else %}OFF{% endif %}
+          </span>
+        </td>
+        <td>
+          <button class="btn btn-sm btn-warning"
+                  onclick="toggleWatchlist('{{ name }}', {{ 'false' if wl.enabled else 'true' }})">
+            {% if wl.enabled %}Disable{% else %}Enable{% endif %}
+          </button>
+          <button class="btn btn-sm btn-danger"
+                  onclick="deleteWatchlist('{{ name }}')">
+            Delete
+          </button>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center">No watchlists yet. Add one above.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

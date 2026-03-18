@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "stock-data-collector": {
+      "command": "python3",
+      "args": ["/Users/jbs/.claude-worktrees/PJT_AI/funny-varahamihira/Stock_Analysis/mcp_servers/stock_data_mcp.py"]
+    },
+    "technical-analysis": {
+      "command": "python3",
+      "args": ["/Users/jbs/.claude-worktrees/PJT_AI/funny-varahamihira/Stock_Analysis/mcp_servers/technical_analysis_mcp.py"]
+    },
+    "expert-analysis": {
+      "command": "python3",
+      "args": ["/Users/jbs/.claude-worktrees/PJT_AI/funny-varahamihira/Stock_Analysis/mcp_servers/expert_analysis_mcp.py"]
+    },
+    "stock-report": {
+      "command": "python3",
+      "args": ["/Users/jbs/.claude-worktrees/PJT_AI/funny-varahamihira/Stock_Analysis/mcp_servers/stock_report_mcp.py"]
+    }
+  }
+}

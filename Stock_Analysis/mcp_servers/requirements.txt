@@ -1,0 +1,29 @@
+# Stock Analysis MCP Servers - 의존성
+# pip install -r requirements.txt
+
+# MCP 프레임워크
+mcp>=0.9.0
+
+# 데이터 수집
+yfinance>=0.2.30
+requests>=2.31.0
+
+# 데이터 분석
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 기술적 지표
+ta>=0.11.0
+
+# 시각화
+matplotlib>=3.7.0
+mplfinance>=0.12.9
+
+# VaR 계산
+scipy>=1.11.0
+
+# 설정
+PyYAML>=6.0
+
+# 시간대
+pytz>=2023.3

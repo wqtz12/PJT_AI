@@ -44,6 +44,14 @@ yarn-error.log*
 .eslintcache
 *.tsbuildinfo
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Stock Analysis output
+output/
+
 # Test coverage
 coverage/
 
@@ -74,3 +82,4 @@ firebase-debug.log
 **/serviceAccountKey.json
 **/*-firebase-adminsdk-*.json
 **/firebase-adminsdk*.json
+\n# Claude settings\n**/*.local.json

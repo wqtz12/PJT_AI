@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Stock Analysis Scheduler{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">Stock Analysis Scheduler</div>
+    <div class="nav-links">
+      <a href="/" class="{% if page == 'dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="/watchlists" class="{% if page == 'watchlists' %}active{% endif %}">Watchlists</a>
+      <a href="/history" class="{% if page == 'history' %}active{% endif %}">History</a>
+      <a href="/settings" class="{% if page == 'settings' %}active{% endif %}">Settings</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <small>Stock Analysis Scheduler v1.0 | Auto-generated technical analysis for reference only</small>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
